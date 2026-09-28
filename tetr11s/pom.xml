@@ -4,11 +4,11 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>seoultech.se</groupId>
-    <artifactId>ter11s</artifactId>
-    <version>0.1.0</version>
+    <groupId>com.tetr11s</groupId>
+    <artifactId>tetr11s</artifactId>
+    <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
-    <name>ter11s</name>
+    <name>tetr11s</name>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
@@ -17,11 +17,11 @@
 
         <javafx.version>21.0.6</javafx.version>
         <junit.version>5.11.4</junit.version>
-        <main.class>tetris.Main</main.class>
+        <main.class>com.tetr11s.Main</main.class>
     </properties>
 
     <dependencies>
-        <!-- 화면 -->
+        <!-- 추가: JavaFX -->
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
@@ -33,7 +33,7 @@
             <version>${javafx.version}</version>
         </dependency>
 
-        <!-- 테스트 -->
+        <!-- 변경: JUnit 4.11 → JUnit 5 -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -50,25 +50,23 @@
                 <version>3.13.0</version>
             </plugin>
 
-            <!-- mvn test : JUnit 5 테스트 실행 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
             </plugin>
 
-            <!-- mvn test 후 target/site/jacoco/index.html 에 커버리지 리포트 생성 -->
+            <!-- 추가: 테스트 커버리지 (target/site/jacoco/index.html) -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.12</version>
                 <configuration>
                     <excludes>
-                        <!-- 화면 코드는 커버리지 측정에서 제외 (로직만 측정) -->
-                        <exclude>tetris/Main.class</exclude>
-                        <exclude>tetris/TetrisApp.class</exclude>
-                        <exclude>tetris/app/**</exclude>
-                        <exclude>tetris/game/view/**</exclude>
+                        <exclude>com/tetr11s/Main.class</exclude>
+                        <exclude>com/tetr11s/TetrisApp.class</exclude>
+                        <exclude>com/tetr11s/app/**</exclude>
+                        <exclude>com/tetr11s/game/view/**</exclude>
                     </excludes>
                 </configuration>
                 <executions>
@@ -84,7 +82,7 @@
                 </executions>
             </plugin>
 
-            <!-- mvn javafx:run : 게임 실행 -->
+            <!-- 추가: mvn javafx:run 으로 실행 -->
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>

@@ -25,6 +25,4 @@ replay_pid*
 Thumbs.db
 
 # Metals
-.metals/
-.bloop/
-.bsp/
+/.metals
