@@ -1,0 +1,25 @@
+# Maven 빌드 결과물
+target/
+
+# IDE 설정
+.vscode/
+.idea/
+*.iml
+.settings/
+.project
+.classpath
+
+# 빌드/배포 산출물
+out/
+dist/
+*.exe
+*.dmg
+
+# 로그, JVM 크래시 파일
+*.log
+hs_err_pid*
+replay_pid*
+
+# OS
+.DS_Store
+Thumbs.db
