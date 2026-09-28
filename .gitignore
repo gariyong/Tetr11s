@@ -1,28 +1,44 @@
-# Maven 빌드 결과물
+# ===== Maven 빌드 결과물 =====
 target/
 
-# IDE 설정
-.vscode/
-.idea/
-*.iml
-.settings/
-.project
-.classpath
-
-# 빌드/배포 산출물
+# ===== 배포 산출물 (jpackage 등) =====
 out/
 dist/
 *.exe
+*.msi
 *.dmg
+*.pkg
 
-# 로그, JVM 크래시 파일
+# ===== IDE / 에디터 =====
+# VS Code
+.vscode/
+*.code-workspace
+# IntelliJ
+.idea/
+*.iml
+# Eclipse 
+.settings/
+.project
+.classpath
+.factorypath
+bin/
+
+# ===== Metals (Scala 확장) 캐시 =====
+.metals/
+.bloop/
+.bsp/
+
+# ===== 로그 / JVM 크래시 파일 =====
 *.log
 hs_err_pid*
 replay_pid*
 
-# OS
+# ===== 게임 실행 중 생기는 로컬 데이터 =====
+# (설정과 점수는 사용자 폴더에 저장하지만, 테스트 중 실수로 생길 때 대비)
+settings.json
+scores.json
+
+# ===== OS =====
 .DS_Store
 Thumbs.db
-
-# Metals
-/.metals
+desktop.ini
