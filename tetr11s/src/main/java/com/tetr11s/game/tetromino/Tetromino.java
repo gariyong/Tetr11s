@@ -8,7 +8,6 @@ import java.util.*;
  * toCells()에서 보드용 (row, col)로 바꾼다. row는 위에서 아래로 커진다.
  */
 public enum Tetromino {
-    // 회전은 시계방향 기준
     T(3, new int[][][]{
         {{1,1}, {0,1}, {2,1}, {1,2}},   // 0˚
         {{1,1}, {1,0}, {1,2}, {2,1}},   // 90˚
