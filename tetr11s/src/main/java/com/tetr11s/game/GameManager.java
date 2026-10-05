@@ -20,6 +20,7 @@ public class GameManager {
     private Block current;
     private Tetromino next;
     private boolean gameOver;
+    private boolean paused;
 
     // 기본 게임: 10x22 보드(버퍼 행 2개 포함), 7-bag 생성
     public GameManager() {
@@ -39,6 +40,7 @@ public class GameManager {
     public void start() {
         board.clear();
         gameOver = false;
+        paused = false;
         next = nextType.get();
         spawnNext();
     }
@@ -60,7 +62,7 @@ public class GameManager {
 
     /** 시계 방향으로 90도 회전. 막혀 있으면 SRS 벽 킥을 차례로 시도한다. */
     public boolean rotateClockwise() {
-        if (gameOver) {
+        if (!canAct()) {
             return false;
         }
 
@@ -81,7 +83,7 @@ public class GameManager {
      * @return 떨어진 칸 수 (게임오버 상태면 0)
      */
     public int hardDrop() {
-        if (gameOver) {
+        if (!canAct()) {
             return 0;
         }
         int distance = 0;
@@ -99,7 +101,7 @@ public class GameManager {
      * @return 한 칸 내려갔으면 true, 고정됐으면 false
      */
     public boolean tick() {
-        if (gameOver) {
+        if (!canAct()) {
             return false;
         }
         if (tryMove(1, 0)) {
@@ -107,6 +109,14 @@ public class GameManager {
         }
         lockAndSpawn();
         return false;
+    }
+
+    // 일시정지 ↔ 재개. 게임오버 상태에서는 아무 일도 하지 않는다.
+    public void togglePause() {
+        if (gameOver) {
+            return;
+        }
+        paused = !paused;
     }
 
     // ----- 상태 조회 (화면, 테스트용) -----
@@ -127,6 +137,10 @@ public class GameManager {
         return gameOver;
     }
 
+    public boolean isPaused() {
+        return paused;
+    }
+
     // 현재 블럭이 떨어질 위치 (고스트 블럭)
     public Block getGhost() {
         Block ghost = current;
@@ -138,15 +152,22 @@ public class GameManager {
 
     // ----- 내부 처리 -----
 
+    // 게임오버도 일시정지도 아닐 때만 조작할 수 있다.
+    private boolean canAct() {
+        return !gameOver && !paused;
+    }
+
     private boolean tryMove(int dRow, int dCol) {
-        if (gameOver) {
+        if (!canAct()) {
             return false;
         }
+
         Block candidate = current.move(dRow, dCol);
         if (board.canPlace(candidate)) {
             current = candidate;
             return true;
         }
+
         return false;
     }
 

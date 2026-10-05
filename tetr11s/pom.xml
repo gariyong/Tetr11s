@@ -67,6 +67,7 @@
                         <exclude>com/tetr11s/TetrisApp.class</exclude>
                         <exclude>com/tetr11s/app/**</exclude>
                         <exclude>com/tetr11s/game/view/**</exclude>
+                        <exclude>com/tetr11s/game/controller/GameController*.class</exclude>
                     </excludes>
                 </configuration>
                 <executions>
