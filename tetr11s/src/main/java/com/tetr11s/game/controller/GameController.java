@@ -4,8 +4,8 @@ import com.tetr11s.game.GameManager;
 import com.tetr11s.game.view.GameView;
 import com.tetr11s.settings.KeyBindings;
 
-import javafx.animation.AnimationTimer;
 import javafx.animation.Animation;
+import javafx.animation.AnimationTimer;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.scene.input.KeyEvent;
@@ -117,8 +117,7 @@ public class GameController {
      */
     private void quit() {
         if (game.isPaused() || game.isGameOver()) {
-            stop();
-            onQuit.run();
+            onQuit.run(); //stop 은 ScreenManager 로 관리
         } else {
             togglePause();
         }
