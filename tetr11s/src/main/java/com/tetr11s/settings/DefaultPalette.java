@@ -12,6 +12,7 @@ import javafx.scene.paint.Color;
 public class DefaultPalette {
 
     private static final String SYMBOL = "■";
+    // private static final String SYMBOL = "██";
 
     private final Map<Tetromino, Color> colors = new EnumMap<>(Tetromino.class);
 

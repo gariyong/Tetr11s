@@ -7,8 +7,6 @@ import com.tetr11s.game.tetromino.Cell;
 import com.tetr11s.game.tetromino.Tetromino;
 import com.tetr11s.settings.DefaultPalette;
 
-import javafx.geometry.Pos;
-import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -17,13 +15,16 @@ import javafx.scene.text.FontWeight;
 /**
  * 보드를 글자로 그리는 화면.
  *
- * 칸 하나 = Label 하나. 보이는 20줄만 그리고, 위쪽 버퍼 줄은 그리지 않는다.
+ * <p>칸 하나 = TextCell 하나. 보이는 20줄만 그리고, 위쪽 버퍼 줄은 그리지 않는다.
  * 그리는 순서: 쌓인 블럭 → 고스트 → 현재 블럭 (나중에 그린 것이 위에 보인다)
  */
 public class BoardView extends GridPane {
 
-    static final double CELL_SIZE = 26;
-    static final Font CELL_FONT = Font.font("Monospaced", FontWeight.BOLD, 22);
+    /** 칸 하나의 크기(px). 이 값만 바꾸면 칸과 블럭이 같이 커지고 작아진다. */
+    static final double CELL_SIZE = 30;
+
+    /** 빈 칸의 점(·) 크기에만 영향을 준다. 블럭은 TextCell이 칸에 맞게 늘려서 그린다. */
+    static final Font CELL_FONT = Font.font("Monospaced", FontWeight.BOLD, CELL_SIZE * 0.8);
 
     private static final String EMPTY = "·";
     private static final String GHOST = "□";
@@ -32,17 +33,17 @@ public class BoardView extends GridPane {
     private final DefaultPalette palette;
     private final int rows;
     private final int cols;
-    private final Label[][] cells;   // [화면 줄][열]
+    private final TextCell[][] cells;   // [화면 줄][열]
 
     public BoardView(DefaultPalette palette, int cols, int visibleRows) {
         this.palette = palette;
         this.rows = visibleRows;
         this.cols = cols;
-        this.cells = new Label[rows][cols];
+        this.cells = new TextCell[rows][cols];
 
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
-                Label cell = createCell();
+                TextCell cell = createCell();
                 cells[r][c] = cell;
                 add(cell, c, r);
             }
@@ -61,9 +62,9 @@ public class BoardView extends GridPane {
             for (int c = 0; c < cols; c++) {
                 Tetromino type = board.get(r + Board.BUFFER_ROWS, c);
                 if (type == null) {
-                    set(r, c, EMPTY, EMPTY_COLOR);
+                    cells[r][c].show(EMPTY, EMPTY_COLOR, false);
                 } else {
-                    set(r, c, palette.getSymbol(type), palette.getColor(type));
+                    cells[r][c].show(palette.getSymbol(type), palette.getColor(type), true);
                 }
             }
         }
@@ -87,26 +88,17 @@ public class BoardView extends GridPane {
         }
     }
 
-    /** 보드 좌표의 칸을 화면에 그린다. 버퍼 줄이면 그리지 않는다. */
-    private void draw(Cell cell, String text, Color color) {
+    /** 보드 좌표의 칸에 블럭을 그린다. 버퍼 줄이면 그리지 않는다. */
+    private void draw(Cell cell, String symbol, Color color) {
         int r = cell.row() - Board.BUFFER_ROWS;
         if (r < 0 || r >= rows || cell.col() < 0 || cell.col() >= cols) {
             return;
         }
-        set(r, cell.col(), text, color);
+        cells[r][cell.col()].show(symbol, color, true);
     }
 
-    private void set(int r, int c, String text, Color color) {
-        cells[r][c].setText(text);
-        cells[r][c].setTextFill(color);
-    }
-
-    static Label createCell() {
-        Label cell = new Label();
-        cell.setFont(CELL_FONT);
-        cell.setMinSize(CELL_SIZE, CELL_SIZE);
-        cell.setPrefSize(CELL_SIZE, CELL_SIZE);
-        cell.setAlignment(Pos.CENTER);
-        return cell;
+    /** 칸 하나. NextBlockView도 같은 모양을 쓰기 위해 함께 사용한다. */
+    static TextCell createCell() {
+        return new TextCell(CELL_SIZE, CELL_FONT);
     }
 }
