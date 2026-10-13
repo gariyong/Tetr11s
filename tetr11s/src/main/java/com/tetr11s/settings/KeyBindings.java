@@ -10,7 +10,7 @@ import javafx.scene.input.KeyCode;
 /**
  * 키 → 게임 동작 매핑.
  *
- * <p>게임 코드는 이 클래스로 키를 GameAction으로 바꿔서 쓴다.
+ * 게임 코드는 이 클래스로 키를 GameAction으로 바꿔서 쓴다.
  * 설정 화면에서 키를 바꾸면 bind()를 호출한다.
  */
 public class KeyBindings {
