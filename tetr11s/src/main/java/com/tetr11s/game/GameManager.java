@@ -16,6 +16,7 @@ public class GameManager {
 
     private final Board board;
     private final Supplier<Tetromino> nextType;
+    private final ScoreManager score = new ScoreManager();
 
     private Block current;
     private Tetromino next;
@@ -39,6 +40,7 @@ public class GameManager {
     // 새 게임 시작: 보드를 비우고 첫 블럭을 생성
     public void start() {
         board.clear();
+        score.reset();
         gameOver = false;
         paused = false;
         next = nextType.get();
@@ -57,7 +59,13 @@ public class GameManager {
 
     /** 한 칸 아래로. 막혀 있으면 아무 일도 하지 않는다 (고정은 tick이 담당). */
     public boolean softDrop() {
-        return tryMove(1, 0);
+        if(tryMove(1, 0)){
+            score.addDrop(1);
+
+            return true;
+        }
+
+        return false;
     }
 
     /** 시계 방향으로 90도 회전. 막혀 있으면 SRS 벽 킥을 차례로 시도한다. */
@@ -90,6 +98,8 @@ public class GameManager {
         while (tryMove(1, 0)) {
             distance++;
         }
+
+        score.addDrop(distance);
         lockAndSpawn();
         return distance;
     }
@@ -105,8 +115,10 @@ public class GameManager {
             return false;
         }
         if (tryMove(1, 0)) {
+            score.addDrop(1);
             return true;
         }
+        
         lockAndSpawn();
         return false;
     }
@@ -139,6 +151,23 @@ public class GameManager {
 
     public boolean isPaused() {
         return paused;
+    }
+
+    public int getScore(){
+        return score.score();
+    }
+
+    public int getLevel(){
+        return score.level();
+    }
+
+    public int getLines(){
+        return score.lines();
+    }
+
+    // 현재 레벨의 자동 낙하 속도
+    public long getDropIntervalMillis(){
+        return score.dropIntervalMillis();
     }
 
     // 현재 블럭이 떨어질 위치 (고스트 블럭)
@@ -182,7 +211,8 @@ public class GameManager {
             return;
         }
 
-        board.clearFullLines();
+        int cleard = board.clearFullLines();
+        score.addLineClear(cleard);
         spawnNext();
     }
 
