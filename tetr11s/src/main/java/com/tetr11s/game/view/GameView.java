@@ -32,7 +32,10 @@ public class GameView extends HBox {
     private final BoardView boardView;
     private final NextBlockView nextView;
     private final Label scoreValue = infoLabel("0");
+    private final Label levelValue = infoLabel("1");
+    private final Label linesValue = infoLabel("0");
     private final Label statusLabel = infoLabel("");
+    
 
     public GameView(GameManager game, DefaultPalette palette, KeyBindings bindings) {
         this.game = game;
@@ -45,6 +48,8 @@ public class GameView extends HBox {
         VBox side = new VBox(10,
                 infoLabel("NEXT"), nextView,
                 infoLabel("SCORE"), scoreValue,
+                infoLabel("LEVEL"), levelValue,
+                infoLabel("LINES"), linesValue,
                 statusLabel,
                 helpLabel());
         side.setAlignment(Pos.TOP_LEFT);
@@ -60,6 +65,10 @@ public class GameView extends HBox {
         boardView.render(game);
         nextView.render(game.getNext());
 
+        scoreValue.setText(String.valueOf(game.getScore()));
+        levelValue.setText(String.valueOf(game.getLevel()));
+        linesValue.setText(String.valueOf(game.getLines()));
+        
         if (game.isGameOver()) {
             statusLabel.setText("GAME OVER\n" + key(GameAction.QUIT) + ": 종료");
             statusLabel.setTextFill(GAME_OVER_COLOR);

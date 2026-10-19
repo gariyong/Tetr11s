@@ -5,16 +5,11 @@ import com.tetr11s.game.view.GameView;
 import com.tetr11s.settings.KeyBindings;
 
 import javafx.animation.AnimationTimer;
-import javafx.animation.Animation;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.scene.input.KeyEvent;
-import javafx.util.Duration;
 
 /**
  * 시간과 키 입력을 GameManager 호출로 바꿔 주고, 바뀔 때마다 화면을 다시 그린다.
- * gravity: 1초마다 한 칸 자동 낙하
- * inputLoop: 매 프레임 KeyRepeater를 확인해서 꾹 누른 키를 반복 실행
+ * gameLoop(매 프레임)에서 꾹 누른 키 반복과 자동 낙하(현재 레벨의 낙하 간격마다 tick)를 처리한다.
  */
 public class GameController {
 
@@ -24,8 +19,9 @@ public class GameController {
     private final Runnable onQuit;
 
     private final KeyRepeater repeater = new KeyRepeater();
-    private final Timeline gravity;
-    private final AnimationTimer inputLoop;
+    private final AnimationTimer gameLoop;
+
+    private long lastDropMs;
 
     /**
      * @param onQuit 게임을 종료할 때 실행할 일 (지금은 프로그램 종료, 나중에 시작 메뉴로 이동)
@@ -36,32 +32,23 @@ public class GameController {
         this.bindings = bindings;
         this.onQuit = onQuit;
 
-        this.gravity = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
-            game.tick();
-            update();
-        }));
-        this.gravity.setCycleCount(Animation.INDEFINITE);
-
-        this.inputLoop = new AnimationTimer() {
-            @Override
-            public void handle(long now) {
-                for (GameAction action : repeater.update(nowMillis())) {
-                    perform(action);
-                }
+        this.gameLoop = new AnimationTimer() {
+            @Override 
+            public void handle(long now){
+                onFrame(nowMillis());
             }
         };
     }
 
     public void start() {
         game.start();
+        lastDropMs = nowMillis();
         view.refresh();
-        gravity.play();
-        inputLoop.start();
+        gameLoop.start();
     }
 
     public void stop() {
-        gravity.stop();
-        inputLoop.stop();
+        gameLoop.stop();
         repeater.clear();
     }
 
@@ -94,20 +81,50 @@ public class GameController {
             case MOVE_RIGHT -> game.moveRight();
             case SOFT_DROP -> game.softDrop();
             case ROTATE_CW -> game.rotateClockwise();
-            case HARD_DROP -> game.hardDrop();
+            case HARD_DROP -> {
+                game.hardDrop();
+                lastDropMs = nowMillis();
+            }
             case PAUSE -> togglePause();
             case QUIT -> quit();
         }
         update();
     }
 
+    // 매 프레임 호출
+    private void onFrame(long now) {
+        // 꾹 누른 키 반복
+        for (GameAction action : repeater.update(now)) {
+            perform(action);
+        }
+
+        // 자동 낙하
+        if (game.isPaused() || game.isGameOver()) {
+            lastDropMs = now;   // 멈춘 동안 시간이 쌓이지 않게
+            return;
+        }
+
+        boolean dropped = false;
+        
+        while (now - lastDropMs >= game.getDropIntervalMillis()) {
+            lastDropMs += game.getDropIntervalMillis();
+            game.tick();
+            dropped = true;
+
+            if (game.isGameOver()) {
+                break;
+            }
+        }
+
+        if (dropped) {
+            update();
+        }
+    }
+
     private void togglePause() {
         game.togglePause();
         if (game.isPaused()) {
-            gravity.pause();
             repeater.cancelRepeats();
-        } else {
-            gravity.play();
         }
     }
 
@@ -127,7 +144,6 @@ public class GameController {
     private void update() {
         view.refresh();
         if (game.isGameOver()) {
-            gravity.stop();
             repeater.cancelRepeats();
         }
     }
