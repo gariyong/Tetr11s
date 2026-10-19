@@ -5,10 +5,6 @@ import com.tetr11s.game.view.GameView;
 import com.tetr11s.settings.KeyBindings;
 
 import javafx.animation.AnimationTimer;
-import javafx.animation.Animation;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
-
 import javafx.scene.input.KeyEvent;
 
 /**
