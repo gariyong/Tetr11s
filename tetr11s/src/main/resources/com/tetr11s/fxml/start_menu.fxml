@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane fx:id="root" fx:controller="com.tetr11s.app.controller.StartMenuController"
+        xmlns="http://javafx.com/javafx/21"
+        xmlns:fx="http://javafx.com/fxml/1"
+        prefWidth="480" prefHeight="640"
+        stylesheets="@../css/start_menu.css" styleClass="start-menu"
+        focusTraversable="true" onKeyPressed="#onKeyPressed">
+        <top>
+               <Label text="TETR11S" styleClass="title" BorderPane.alignment="CENTER"/>
+        </top>
+        <center>
+               <!--
+               메뉴 항목은 StartMenuController가 목록을 보고 채운다
+               -->
+               <VBox fx:id="menuBox" alignment="CENTER" spacing="12"/>
+        </center>
+        <bottom>
+               <VBox alignment="CENTER" spacing="12">
+                      <children>
+                             <Label fx:id="messageLabel" styleClass="message"/>
+                             <Label text="↑↓ 이동     Enter 선택" styleClass="key-hint"/>
+                      </children>
+               </VBox>
+        </bottom>
+</BorderPane>

@@ -1,0 +1,42 @@
+.start-menu {
+    /** 
+    * 한글 Windows에서는 JavaFX 기본 글꼴이 Consolas Italic으로 잘못 잡혀서 직접 지정한다 
+    */
+    -fx-font-family: "Malgun Gothic";
+    -fx-background-color: #12121c;
+    -fx-padding: 56 24 28 24;
+}
+
+.title {
+    -fx-font-size: 60px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+.menu-item {
+    -fx-pref-width: 260;
+    -fx-alignment: center;
+    -fx-padding: 10 0 10 0;
+    -fx-font-size: 24px;
+    -fx-text-fill: #b4b4c8;
+    -fx-background-radius: 6;
+}
+
+/** 
+* 색만으로 구분하지 않도록 선택된 항목은 배경을 채워서 표시
+*/
+.menu-item:selected {
+    -fx-background-color: #f0f000;
+    -fx-text-fill: #12121c;
+    -fx-font-weight: bold;
+}
+
+.message {
+    -fx-font-size: 14px;
+    -fx-text-fill: white;
+}
+
+.key-hint {
+    -fx-font-size: 14px;
+    -fx-text-fill: #8c8ca4;
+}
