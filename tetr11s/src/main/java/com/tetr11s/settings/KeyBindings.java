@@ -2,6 +2,7 @@ package com.tetr11s.settings;
 
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Properties;
 
 import com.tetr11s.game.controller.GameAction;
 
@@ -12,6 +13,7 @@ import javafx.scene.input.KeyCode;
  *
  * 게임 코드는 이 클래스로 키를 GameAction으로 바꿔서 쓴다.
  * 설정 화면에서 키를 바꾸면 bind()를 호출한다.
+ * 바인딩된 키는 유저 홈에 저장된다.
  */
 public class KeyBindings {
 
@@ -19,6 +21,7 @@ public class KeyBindings {
 
     public KeyBindings() {
         resetToDefault();
+        loadActive();
     }
 
     /** 기본 키로 되돌린다. */
@@ -31,6 +34,24 @@ public class KeyBindings {
         keys.put(GameAction.HARD_DROP, KeyCode.SPACE);
         keys.put(GameAction.PAUSE, KeyCode.P);
         keys.put(GameAction.QUIT, KeyCode.ESCAPE);
+    }
+
+    public void saveActive() {
+        Properties properties = SettingsStore.load();
+        for (GameAction action : GameAction.values()) {
+            properties.setProperty(SettingsStore.activeKey(action), keyFor(action).name());
+        }
+        SettingsStore.save(properties);
+    }
+
+    private void loadActive() {
+        Properties properties = SettingsStore.load();
+        for (GameAction action : GameAction.values()) {
+            String value = properties.getProperty(SettingsStore.activeKey(action));
+            if (value != null) {
+                keys.put(action, SettingsStore.parseKey(value, keys.get(action)));
+            }
+        }
     }
 
     /** 눌린 키에 해당하는 동작. 게임에 쓰이지 않는 키면 null */
@@ -59,5 +80,35 @@ public class KeyBindings {
             keys.put(other, oldKey);
         }
         keys.put(action, code);
+        saveActive();
+    }
+
+    public void savePreset(String name) {
+        String normalized = normalizePresetName(name);
+        if (normalized.isBlank()) {
+            throw new IllegalArgumentException("키 프리셋 이름을 입력해야 합니다.");
+        }
+        Properties properties = SettingsStore.load();
+        for (GameAction action : GameAction.values()) {
+            properties.setProperty(SettingsStore.keyPresetKey(normalized, action), keyFor(action).name());
+        }
+        SettingsStore.save(properties);
+    }
+
+    public void loadPreset(String name) {
+        String normalized = normalizePresetName(name);
+        Properties properties = SettingsStore.load();
+        for (GameAction action : GameAction.values()) {
+            String value = properties.getProperty(SettingsStore.keyPresetKey(normalized, action));
+            if (value == null) {
+                throw new IllegalArgumentException("저장된 키 프리셋이 없습니다: " + name);
+            }
+            keys.put(action, SettingsStore.parseKey(value, keys.get(action)));
+        }
+        saveActive();
+    }
+
+    private static String normalizePresetName(String name) {
+        return name == null ? "" : name.trim().replaceAll("[^\\p{L}\\p{N}_-]", "_");
     }
 }

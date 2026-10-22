@@ -40,3 +40,9 @@
     -fx-font-size: 14px;
     -fx-text-fill: #8c8ca4;
 }
+
+.corner-setting {
+    -fx-font-size: 14px;
+    -fx-text-fill: white;
+    -fx-cursor: hand;
+}

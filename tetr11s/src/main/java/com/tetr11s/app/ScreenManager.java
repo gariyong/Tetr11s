@@ -4,8 +4,9 @@ import java.io.IOException;
 
 import com.tetr11s.app.controller.StartMenuController;
 import com.tetr11s.game.GameScreen;
-import com.tetr11s.settings.ColorblindSettingsView;
+import com.tetr11s.settings.SettingsView;
 import com.tetr11s.settings.DefaultPalette;
+import com.tetr11s.settings.KeyBindings;
 
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -82,13 +83,14 @@ public class ScreenManager {
 
     public void showSettings() {
         stopCurrentGame();
-        ColorblindSettingsView view = new ColorblindSettingsView(new DefaultPalette(), () -> {
+        SettingsView view = new SettingsView(
+                new DefaultPalette(), new KeyBindings(), () -> {
             try {
                 showStartMenu();
             } catch (IOException e) {
                 throw new RuntimeException("시작 메뉴를 열 수 없습니다.", e);
             }
-        });
+                });
         stage.setTitle("Tetr11s - 설정");
         stage.setScene(new Scene(view));
         stage.setResizable(false);

@@ -3,7 +3,6 @@ package com.tetr11s.game.controller;
 import com.tetr11s.game.GameManager;
 import com.tetr11s.game.view.GameView;
 import com.tetr11s.settings.KeyBindings;
-
 import javafx.animation.AnimationTimer;
 import javafx.scene.input.KeyEvent;
 

@@ -4,6 +4,7 @@ import com.tetr11s.game.controller.GameController;
 import com.tetr11s.game.view.GameView;
 import com.tetr11s.settings.DefaultPalette;
 import com.tetr11s.settings.KeyBindings;
+import com.tetr11s.settings.SettingsStore;
 
 import javafx.scene.Scene;
 /**
@@ -24,6 +25,11 @@ public class GameScreen {
         GameManager game = new GameManager();
         KeyBindings bindings = new KeyBindings();
         GameView view = new GameView(game, new DefaultPalette(), bindings);
+
+        // 화면 배율은 여기서 조정을 적용
+        double scale = SettingsStore.loadScale();
+        view.setScaleX(scale);
+        view.setScaleY(scale);
         GameController controller = new GameController(game, view, bindings, onQuit);
 
         Scene scene = new Scene(view);

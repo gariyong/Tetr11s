@@ -84,60 +84,59 @@ public class DefaultPalette {
         saveActivePalette();
     }
 
+    public void resetAll() {
+        restoreDefaultColors();
+        setColorblindMode(false);
+    }
+
     public void savePreset(String name) {
         String normalized = normalizePresetName(name);
         if (normalized.isBlank()) {
             throw new IllegalArgumentException("프리셋 이름을 입력해야 합니다.");
         }
-        Properties properties = PaletteStore.load();
+        Properties properties = SettingsStore.load();
         for (Tetromino type : Tetromino.values()) {
-            properties.setProperty(PaletteStore.colorKey(normalized, type), toHex(colors.get(type)));
+            properties.setProperty(SettingsStore.colorKey(normalized, type), SettingsStore.toHex(colors.get(type)));
         }
-        PaletteStore.save(properties);
+        SettingsStore.save(properties);
     }
 
     public void loadPreset(String name) {
         String normalized = normalizePresetName(name);
-        Properties properties = PaletteStore.load();
+        Properties properties = SettingsStore.load();
         for (Tetromino type : Tetromino.values()) {
-            String value = properties.getProperty(PaletteStore.colorKey(normalized, type));
+            String value = properties.getProperty(SettingsStore.colorKey(normalized, type));
             if (value == null) {
                 throw new IllegalArgumentException("저장된 프리셋이 없습니다: " + name);
             }
-            colors.put(type, PaletteStore.parseColor(value, colors.get(type)));
+            colors.put(type, SettingsStore.parseColor(value, colors.get(type)));
         }
         colorblindMode = true;
         saveActivePalette();
     }
 
     private void loadActivePalette() {
-        Properties properties = PaletteStore.load();
+        Properties properties = SettingsStore.load();
         colorblindMode = Boolean.parseBoolean(properties.getProperty("active.colorblind", "false"));
         for (Tetromino type : Tetromino.values()) {
             String value = properties.getProperty("active.color." + type.name());
             if (value != null) {
-                colors.put(type, PaletteStore.parseColor(value, colors.get(type)));
+                colors.put(type, SettingsStore.parseColor(value, colors.get(type)));
             }
         }
     }
 
     private void saveActivePalette() {
-        Properties properties = PaletteStore.load();
+        Properties properties = SettingsStore.load();
         properties.setProperty("active.colorblind", Boolean.toString(colorblindMode));
         for (Tetromino type : Tetromino.values()) {
-            properties.setProperty("active.color." + type.name(), toHex(colors.get(type)));
+            properties.setProperty("active.color." + type.name(), SettingsStore.toHex(colors.get(type)));
         }
-        PaletteStore.save(properties);
+        SettingsStore.save(properties);
     }
 
     private static String normalizePresetName(String name) {
         return name == null ? "" : name.trim().replaceAll("[^\\p{L}\\p{N}_-]", "_");
     }
 
-    private static String toHex(Color color) {
-        return String.format("#%02X%02X%02X",
-                Math.round(color.getRed() * 255),
-                Math.round(color.getGreen() * 255),
-                Math.round(color.getBlue() * 255));
-    }
 }
