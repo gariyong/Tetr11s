@@ -34,7 +34,7 @@ public class NextBlockView extends Canvas {
         }
 
         for (Cell c : next.cells(0)) {
-            draw(c, palette.getColor(next));
+            draw(c, next);
         }
     }
 
@@ -44,17 +44,19 @@ public class NextBlockView extends Canvas {
     }
 
     /** 다음 블럭의 Cell 좌표를 캔버스 픽셀 영역으로 변환해 그린다. */
-    private void draw(Cell cell, Color color) {
-        drawCell(cell.row(), cell.col(), color);
+    private void draw(Cell cell, Tetromino type) {
+        drawCell(cell.row(), cell.col(), type);
     }
 
-    private void drawCell(int row, int col, Color color) {
+    private void drawCell(int row, int col, Tetromino type) {
         double x = PADDING + col * BoardView.CELL_SIZE;
         double y = PADDING + row * BoardView.CELL_SIZE;
         double size = BoardView.CELL_SIZE - CELL_GAP;
+        Color color = palette.getColor(type);
 
         graphics.setFill(color);
         graphics.fillRect(x, y, size, size);
+        palette.getPattern(type).draw(graphics, x, y, size, color);
         graphics.setStroke(color.brighter());
         graphics.setLineWidth(1);
         graphics.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);

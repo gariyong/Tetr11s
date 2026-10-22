@@ -95,7 +95,7 @@ public class StartMenuController {
     }
 
     private void openSettings() {
-        showNotReady("설정");
+        screenManager.showSettings();
     }
 
     private void openScoreboard() {

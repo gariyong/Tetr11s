@@ -56,9 +56,9 @@ public class BoardView extends Canvas {
             for (int c = 0; c < cols; c++) {
                 Tetromino type = board.get(r + Board.BUFFER_ROWS, c);
                 if (type == null) {
-                    set(r, c, EMPTY, BACKGROUND_COLOR);
+                    set(r, c, EMPTY, BACKGROUND_COLOR, null);
                 } else {
-                    set(r, c, palette.getSymbol(type), palette.getColor(type));
+                    set(r, c, palette.getSymbol(type), palette.getColor(type), type);
                 }
             }
         }
@@ -72,23 +72,23 @@ public class BoardView extends Canvas {
         if (!game.isGameOver()) {
             Color color = palette.getColor(current.type());
             for (Cell cell : game.getGhost().cells()) {
-                draw(cell, GHOST, color);
+                draw(cell, GHOST, color, current.type());
             }
         }
 
         // 3. 현재 블럭
         for (Cell cell : current.cells()) {
-            draw(cell, palette.getSymbol(current.type()), palette.getColor(current.type()));
+            draw(cell, palette.getSymbol(current.type()), palette.getColor(current.type()), current.type());
         }
     }
 
     /** 보드 좌표의 칸을 화면에 그린다. 버퍼 줄이면 그리지 않는다. */
-    private void draw(Cell cell, String text, Color color) {
+    private void draw(Cell cell, String text, Color color, Tetromino type) {
         int r = cell.row() - Board.BUFFER_ROWS;
         if (r < 0 || r >= rows || cell.col() < 0 || cell.col() >= cols) {
             return;
         }
-        set(r, cell.col(), text, color);
+        set(r, cell.col(), text, color, type);
     }
 
     // 캔버스 새로 그리기
@@ -101,12 +101,12 @@ public class BoardView extends Canvas {
         graphics.strokeRect(1, 1, getWidth() - 2, getHeight() - 2);
     }
 
-    private void set(int r, int c, String text, Color color) {
-        drawCell(r, c, text, color);
+    private void set(int r, int c, String text, Color color, Tetromino type) {
+        drawCell(r, c, text, color, type);
     }
 
     // 캔버스에 그릴때 CELL_SIZE 곱해서 잘 그립니다
-    private void drawCell(int r, int c, String text, Color color) {
+    private void drawCell(int r, int c, String text, Color color, Tetromino type) {
         double x = PADDING + c * CELL_SIZE;
         double y = PADDING + r * CELL_SIZE;
         double size = CELL_SIZE - CELL_GAP;
@@ -131,6 +131,9 @@ public class BoardView extends Canvas {
 
         graphics.setFill(color);
         graphics.fillRect(x, y, size, size);
+        if (type != null) {
+            palette.getPattern(type).draw(graphics, x, y, size, color);
+        }
         graphics.setStroke(color.brighter());
         graphics.setLineWidth(1);
         graphics.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
