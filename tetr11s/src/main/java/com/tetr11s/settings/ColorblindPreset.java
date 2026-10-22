@@ -7,6 +7,8 @@ import com.tetr11s.game.tetromino.Tetromino;
 
 import javafx.scene.paint.Color;
 
+// 색맹 모드 색상 (적록색맹, 적색약, 녹색약, 청황색맹) 프리셋
+
 public enum ColorblindPreset {
     RED_GREEN("적록색맹"),
     PROTAN("적색약"),

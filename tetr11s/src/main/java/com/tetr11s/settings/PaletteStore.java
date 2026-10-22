@@ -12,6 +12,8 @@ import com.tetr11s.game.tetromino.Tetromino;
 
 import javafx.scene.paint.Color;
 
+// 유저 홈에 프리셋을 저장함 
+
 final class PaletteStore {
     private static final String FILE_NAME = "colorblind-presets.properties";
 

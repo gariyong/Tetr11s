@@ -15,6 +15,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 
+// 색맹모드 설정 뷰 
+
 public class ColorblindSettingsView extends BorderPane {
     private static final double SAMPLE_CELL_SIZE = 54;
     private static final double SAMPLE_GAP = 8;

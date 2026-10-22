@@ -10,6 +10,7 @@ import javafx.scene.paint.Color;
 
 
 // 일반 모드 색상 (테트리스 가이드라인 표준 색)
+// 블록별 패턴 매핑
 public class DefaultPalette {
 
     private static final String SYMBOL = "■";

@@ -19,7 +19,7 @@ import javafx.scene.paint.Color;
  */
 public class BoardView extends Canvas {
 
-    static final double CELL_SIZE = 26;
+    static final double CELL_SIZE = 30;
 
     private static final String EMPTY = "·";
     private static final String GHOST = "□";
@@ -131,6 +131,8 @@ public class BoardView extends Canvas {
 
         graphics.setFill(color);
         graphics.fillRect(x, y, size, size);
+        
+        // 패턴 그리는 부분
         if (type != null) {
             palette.getPattern(type).draw(graphics, x, y, size, color);
         }
