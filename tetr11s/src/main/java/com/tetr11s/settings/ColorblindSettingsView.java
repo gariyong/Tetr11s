@@ -63,7 +63,8 @@ public class ColorblindSettingsView extends BorderPane {
         HBox presetButtons = new HBox(8,
                 presetButton(ColorblindPreset.RED_GREEN),
                 presetButton(ColorblindPreset.PROTAN),
-                presetButton(ColorblindPreset.DEUTAN));
+                presetButton(ColorblindPreset.DEUTAN),
+                presetButton(ColorblindPreset.TRITAN));
         presetButtons.setAlignment(Pos.CENTER);
 
         VBox editor = new VBox(14, help, samples, selectedLabel, valueLabel,

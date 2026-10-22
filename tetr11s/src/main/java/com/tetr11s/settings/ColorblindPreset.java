@@ -10,7 +10,8 @@ import javafx.scene.paint.Color;
 public enum ColorblindPreset {
     RED_GREEN("적록색맹"),
     PROTAN("적색약"),
-    DEUTAN("녹색약");
+    DEUTAN("녹색약"),
+    TRITAN("청황색맹");
 
     private final String displayName;
 
@@ -51,6 +52,15 @@ public enum ColorblindPreset {
                 colors.put(Tetromino.Z, Color.web("#C86B45"));
                 colors.put(Tetromino.J, Color.web("#3C78A8"));
                 colors.put(Tetromino.L, Color.web("#D9C34A"));
+            }
+            case TRITAN -> {
+                colors.put(Tetromino.I, Color.web("#4C9BD6"));
+                colors.put(Tetromino.O, Color.web("#E58F3A"));
+                colors.put(Tetromino.T, Color.web("#A66BBE"));
+                colors.put(Tetromino.S, Color.web("#5A9E55"));
+                colors.put(Tetromino.Z, Color.web("#C94F4F"));
+                colors.put(Tetromino.J, Color.web("#3D6EAA"));
+                colors.put(Tetromino.L, Color.web("#D3B84A"));
             }
         }
         return colors;
