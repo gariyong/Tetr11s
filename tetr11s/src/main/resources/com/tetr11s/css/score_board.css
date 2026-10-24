@@ -1,0 +1,68 @@
+.scoreboard {
+    /**
+    * 시작 메뉴와 같은 이유로 글꼴을 직접 지정 (한글 Windows 기본 글꼴 문제)
+    */
+    -fx-font-family: "Malgun Gothic";
+    -fx-background-color: #12121c;
+    -fx-padding: 40 24 28 24;
+}
+
+.title {
+    -fx-font-size: 40px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-padding: 0 0 20 0;
+}
+
+.header-row,
+.score-row {
+    -fx-alignment: center;
+    -fx-padding: 6 0 6 0;
+    -fx-background-radius: 6;
+}
+
+.header-row .label {
+    -fx-font-size: 14px;
+    -fx-text-fill: #8c8ca4;
+}
+
+.score-row .label {
+    -fx-font-size: 20px;
+    -fx-text-fill: #e6e6f0;
+}
+
+/**
+* 아직 기록이 없는 자리는 흐리게
+*/
+.score-row.empty-row .label {
+    -fx-text-fill: #4a4a5e;
+}
+
+/**
+* 열 너비를 고정해서 줄마다 칸이 맞게. 이름이 길면 끝이 ...으로 줄어든다
+*/
+.rank {
+    -fx-min-width: 60;
+    -fx-pref-width: 60;
+    -fx-max-width: 60;
+    -fx-alignment: center;
+}
+
+.name {
+    -fx-min-width: 220;
+    -fx-pref-width: 220;
+    -fx-max-width: 220;
+    -fx-alignment: center-left;
+}
+
+.score {
+    -fx-min-width: 130;
+    -fx-pref-width: 130;
+    -fx-max-width: 130;
+    -fx-alignment: center-right;
+}
+
+.key-hint {
+    -fx-font-size: 14px;
+    -fx-text-fill: #8c8ca4;
+}

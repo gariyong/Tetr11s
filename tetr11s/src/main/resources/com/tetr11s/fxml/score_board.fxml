@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane fx:id="root" fx:controller="com.tetr11s.app.controller.ScoreBoardController"
+        xmlns="http://javafx.com/javafx/21"
+        xmlns:fx="http://javafx.com/fxml/1"
+        prefWidth="480" prefHeight="640"
+        stylesheets="@../css/score_board.css" styleClass="scoreboard"
+        focusTraversable="true" onKeyPressed="#onKeyPressed">
+        <top>
+               <Label text="SCOREBOARD" styleClass="title" BorderPane.alignment="CENTER"/>
+        </top>
+        <center>
+               <VBox spacing="4">
+                      <children>
+                             <HBox styleClass="header-row">
+                                    <children>
+                                           <Label text="순위" styleClass="rank"/>
+                                           <Label text="이름" styleClass="name"/>
+                                           <Label text="점수" styleClass="score"/>
+                                    </children>
+                             </HBox>
+                             <!--
+                             1~10위 줄은 ScoreboardController가 기록을 보고 채운다
+                             -->
+                             <VBox fx:id="rowBox" spacing="4"/>
+                      </children>
+               </VBox>
+        </center>
+        <bottom>
+               <Label text="Enter / Esc  시작 메뉴로" styleClass="key-hint" BorderPane.alignment="CENTER"/>
+        </bottom>
+</BorderPane>
