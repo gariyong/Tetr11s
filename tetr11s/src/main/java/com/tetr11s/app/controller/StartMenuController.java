@@ -13,6 +13,7 @@ import javafx.scene.control.Label;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
+import com.tetr11s.settings.SettingsStore;
 
 /**
 * MenuModel 을 생성하고, 안에 MenuEntry 들을 추가한다
@@ -95,7 +96,8 @@ public class StartMenuController {
     }
 
     private void openSettings() {
-        showNotReady("설정");
+        screenManager.showSettings();
+
     }
 
     private void openScoreboard() {
@@ -104,6 +106,20 @@ public class StartMenuController {
 
     private void exitGame() {
         Platform.exit();
+    }
+
+    @FXML
+    private void cycleSize() {
+        double current = SettingsStore.loadScale();
+        double next = current == 0.75 ? 1.0 : current == 1.0 ? 1.25 : 0.75;
+        SettingsStore.saveScale(next);
+        messageLabel.setText("게임 크기: " + next + "배");
+    }
+
+    @FXML
+    private void resetSettings() {
+        SettingsStore.delete();
+        messageLabel.setText("모든 설정을 초기화했습니다.");
     }
 
     private void showNotReady(String screenName) {

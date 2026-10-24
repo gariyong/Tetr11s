@@ -7,64 +7,58 @@ import com.tetr11s.game.tetromino.Cell;
 import com.tetr11s.game.tetromino.Tetromino;
 import com.tetr11s.settings.DefaultPalette;
 
-import javafx.scene.layout.GridPane;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 
 /**
- * 보드를 글자로 그리는 화면.
+ * 보드를 캔버스에 그리는 화면.
  *
- * <p>칸 하나 = TextCell 하나. 보이는 20줄만 그리고, 위쪽 버퍼 줄은 그리지 않는다.
+ * 보이는 20줄만 그리고, 위쪽 버퍼 줄은 그리지 않는다.
  * 그리는 순서: 쌓인 블럭 → 고스트 → 현재 블럭 (나중에 그린 것이 위에 보인다)
  */
-public class BoardView extends GridPane {
+public class BoardView extends Canvas {
 
-    /** 칸 하나의 크기(px). 이 값만 바꾸면 칸과 블럭이 같이 커지고 작아진다. */
     static final double CELL_SIZE = 30;
-
-    /** 빈 칸의 점(·) 크기에만 영향을 준다. 블럭은 TextCell이 칸에 맞게 늘려서 그린다. */
-    static final Font CELL_FONT = Font.font("Monospaced", FontWeight.BOLD, CELL_SIZE * 0.8);
 
     private static final String EMPTY = "·";
     private static final String GHOST = "□";
-    private static final Color EMPTY_COLOR = Color.rgb(70, 70, 70);
+    private static final Color BACKGROUND_COLOR = Color.rgb(17, 17, 17);
+    private static final Color BORDER_COLOR = Color.rgb(136, 136, 136);
+    private static final Color GRID_COLOR = Color.rgb(45, 45, 45);
+    private static final double CELL_GAP = 1;
+    private static final double PADDING = 2;
 
     private final DefaultPalette palette;
     private final int rows;
     private final int cols;
-    private final TextCell[][] cells;   // [화면 줄][열]
+    private final GraphicsContext graphics;
 
     public BoardView(DefaultPalette palette, int cols, int visibleRows) {
         this.palette = palette;
         this.rows = visibleRows;
         this.cols = cols;
-        this.cells = new TextCell[rows][cols];
+        this.graphics = getGraphicsContext2D();
 
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < cols; c++) {
-                TextCell cell = createCell();
-                cells[r][c] = cell;
-                add(cell, c, r);
-            }
-        }
-        setStyle("-fx-background-color: #111111;"
-                + "-fx-border-color: #888888;"
-                + "-fx-border-width: 2;");
+        setWidth(cols * CELL_SIZE + PADDING * 2);
+        setHeight(rows * CELL_SIZE + PADDING * 2);
+        setFocusTraversable(true);
+        setOnMousePressed(event -> requestFocus());
     }
 
     /** 게임 상태를 읽어서 화면 전체를 다시 그린다. */
     public void render(GameManager game) {
         Board board = game.getBoard();
+        clear();
 
         // 1. 쌓인 블럭 (버퍼 줄은 건너뜀)
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
                 Tetromino type = board.get(r + Board.BUFFER_ROWS, c);
                 if (type == null) {
-                    cells[r][c].show(EMPTY, EMPTY_COLOR, false);
+                    set(r, c, EMPTY, BACKGROUND_COLOR, null);
                 } else {
-                    cells[r][c].show(palette.getSymbol(type), palette.getColor(type), true);
+                    set(r, c, palette.getSymbol(type), palette.getColor(type), type);
                 }
             }
         }
@@ -78,27 +72,75 @@ public class BoardView extends GridPane {
         if (!game.isGameOver()) {
             Color color = palette.getColor(current.type());
             for (Cell cell : game.getGhost().cells()) {
-                draw(cell, GHOST, color);
+                draw(cell, GHOST, color, current.type());
             }
         }
 
         // 3. 현재 블럭
         for (Cell cell : current.cells()) {
-            draw(cell, palette.getSymbol(current.type()), palette.getColor(current.type()));
+            draw(cell, palette.getSymbol(current.type()), palette.getColor(current.type()), current.type());
         }
     }
 
-    /** 보드 좌표의 칸에 블럭을 그린다. 버퍼 줄이면 그리지 않는다. */
-    private void draw(Cell cell, String symbol, Color color) {
+    /** 보드 좌표의 칸을 화면에 그린다. 버퍼 줄이면 그리지 않는다. */
+    private void draw(Cell cell, String text, Color color, Tetromino type) {
         int r = cell.row() - Board.BUFFER_ROWS;
         if (r < 0 || r >= rows || cell.col() < 0 || cell.col() >= cols) {
             return;
         }
-        cells[r][cell.col()].show(symbol, color, true);
+        set(r, cell.col(), text, color, type);
     }
 
-    /** 칸 하나. NextBlockView도 같은 모양을 쓰기 위해 함께 사용한다. */
-    static TextCell createCell() {
-        return new TextCell(CELL_SIZE, CELL_FONT);
+    // 캔버스 새로 그리기
+    private void clear() {
+        graphics.setFill(BACKGROUND_COLOR);
+        graphics.fillRect(0, 0, getWidth(), getHeight());
+
+        graphics.setStroke(BORDER_COLOR);
+        graphics.setLineWidth(2);
+        graphics.strokeRect(1, 1, getWidth() - 2, getHeight() - 2);
     }
+
+    private void set(int r, int c, String text, Color color, Tetromino type) {
+        drawCell(r, c, text, color, type);
+    }
+
+    // 캔버스에 그릴때 CELL_SIZE 곱해서 잘 그립니다
+    private void drawCell(int r, int c, String text, Color color, Tetromino type) {
+        double x = PADDING + c * CELL_SIZE;
+        double y = PADDING + r * CELL_SIZE;
+        double size = CELL_SIZE - CELL_GAP;
+
+        if (EMPTY.equals(text)) {
+            graphics.setFill(BACKGROUND_COLOR);
+            graphics.fillRect(x, y, size, size);
+            graphics.setStroke(GRID_COLOR);
+            graphics.setLineWidth(1);
+            graphics.strokeRect(x, y, size, size);
+            return;
+        }
+
+        if (GHOST.equals(text)) {
+            graphics.setFill(Color.TRANSPARENT);
+            graphics.fillRect(x, y, size, size);
+            graphics.setStroke(color.deriveColor(0, 1, 1, 0.75));
+            graphics.setLineWidth(2);
+            graphics.strokeRect(x + 1, y + 1, size - 2, size - 2);
+            return;
+        }
+
+        graphics.setFill(color);
+        graphics.fillRect(x, y, size, size);
+        
+        // 패턴 그리는 부분
+        if (type != null) {
+            palette.getPattern(type).draw(graphics, x, y, size, color);
+        }
+        graphics.setStroke(color.brighter());
+        graphics.setLineWidth(1);
+        graphics.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
+        graphics.setStroke(GRID_COLOR);
+        graphics.strokeRect(x, y, size, size);
+    }
+
 }

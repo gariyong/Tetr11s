@@ -2,6 +2,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.AnchorPane?>
 
 <BorderPane fx:id="root" fx:controller="com.tetr11s.app.controller.StartMenuController"
         xmlns="http://javafx.com/javafx/21"
@@ -19,11 +20,17 @@
                <VBox fx:id="menuBox" alignment="CENTER" spacing="12"/>
         </center>
         <bottom>
-               <VBox alignment="CENTER" spacing="12">
+               <AnchorPane prefHeight="80">
                       <children>
                              <Label fx:id="messageLabel" styleClass="message"/>
                              <Label text="↑↓ 이동     Enter 선택" styleClass="key-hint"/>
+                             <Label text="Size" styleClass="corner-setting"
+                                    onMouseClicked="#cycleSize"
+                                    AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0"/>
+                             <Label text="설정 초기화" styleClass="corner-setting"
+                                    onMouseClicked="#resetSettings"
+                                    AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0"/>
                       </children>
-               </VBox>
+               </AnchorPane>
         </bottom>
 </BorderPane>

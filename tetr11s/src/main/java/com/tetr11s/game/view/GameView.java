@@ -58,6 +58,7 @@ public class GameView extends HBox {
         setPadding(new Insets(20));
         setStyle("-fx-background-color: #1e1e1e;");
         getChildren().addAll(boardView, side);
+        // TODO: 드래그 기반 크기 조절을 추가할 때는 비율 유지와 반응형 레이아웃을 함께 처리한다.
     }
 
     /** 게임 상태를 읽어서 화면 전체를 다시 그린다. */
