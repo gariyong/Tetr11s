@@ -9,12 +9,12 @@
         xmlns:fx="http://javafx.com/fxml/1"
         prefWidth="480" prefHeight="640"
         stylesheets="@../css/score_board.css" styleClass="scoreboard"
-        focusTraversable="true" onKeyPressed="#onKeyPressed">
+        focusTraversable="true" onKeyPressed="#onKeyPressed" onKeyReleased="#onKeyReleased">
         <top>
                <Label text="SCOREBOARD" styleClass="title" BorderPane.alignment="CENTER"/>
         </top>
         <center>
-               <VBox spacing="4">
+               <VBox spacing="2">
                       <children>
                              <HBox styleClass="header-row">
                                     <children>
@@ -24,13 +24,22 @@
                                     </children>
                              </HBox>
                              <!--
-                             1~10위 줄은 ScoreboardController가 기록을 보고 채운다
+                             1~10위 줄은 ScoreBoardController가 기록을 보고 채운다
                              -->
-                             <VBox fx:id="rowBox" spacing="4"/>
+                             <VBox fx:id="rowBox" spacing="2"/>
                       </children>
                </VBox>
         </center>
         <bottom>
-               <Label text="Enter / Esc  시작 메뉴로" styleClass="key-hint" BorderPane.alignment="CENTER"/>
+               <VBox alignment="CENTER" spacing="10">
+                      <children>
+                             <!--
+                             '시작 메뉴로', '게임 종료' 항목은 ScoreBoardController가 채운다
+                             시작 메뉴처럼 세로로 놓고 ↑↓로 고른다 (←→는 나중에 난이도 전환에 쓸 자리)
+                             -->
+                             <VBox fx:id="menuBox" alignment="CENTER" spacing="4"/>
+                             <Label text="↑↓ 선택     Enter 확인     Esc 시작 메뉴로" styleClass="key-hint"/>
+                      </children>
+               </VBox>
         </bottom>
 </BorderPane>
