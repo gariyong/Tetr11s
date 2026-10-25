@@ -11,7 +11,13 @@
         stylesheets="@../css/score_board.css" styleClass="scoreboard"
         focusTraversable="true" onKeyPressed="#onKeyPressed" onKeyReleased="#onKeyReleased">
         <top>
-               <Label text="SCOREBOARD" styleClass="title" BorderPane.alignment="CENTER"/>
+            <VBox alignment="CENTER" spacing="2">
+                <children>
+                    <Label text="SCOREBOARD" styleClass="title"/>
+                    <!-- 지금 보고 있는 난이도. ←→로 바꾼다 -->
+                    <Label fx:id="difficultyLabel" styleClass="difficulty-label"/>
+                </children>
+            </VBox>
         </top>
         <center>
                <VBox spacing="2">
@@ -35,11 +41,10 @@
                       <children>
                              <!--
                              '시작 메뉴로', '게임 종료' 항목은 ScoreBoardController가 채운다
-                             시작 메뉴처럼 세로로 놓고 ↑↓로 고른다 (←→는 나중에 난이도 전환에 쓸 자리)
+                             시작 메뉴처럼 세로로 놓고 ↑↓로 고른다 (←→는 난이도 전환)
                              -->
                              <VBox fx:id="menuBox" alignment="CENTER" spacing="4"/>
-                             <Label text="↑↓ 선택     Enter 확인     Esc 시작 메뉴로" styleClass="key-hint"/>
-                      </children>
+                             <Label text="←→ 난이도   ↑↓ 선택   Enter 확인   Esc 시작 메뉴로" styleClass="key-hint"/>                      </children>
                </VBox>
         </bottom>
 </BorderPane>

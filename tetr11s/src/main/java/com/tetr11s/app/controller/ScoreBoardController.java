@@ -1,9 +1,11 @@
 package com.tetr11s.app.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import com.tetr11s.app.menu.MenuEntry;
 import com.tetr11s.app.menu.MenuModel;
+import com.tetr11s.game.Difficulty;
 import com.tetr11s.score.ScoreBoard;
 import com.tetr11s.score.ScoreEntry;
 
@@ -18,10 +20,10 @@ import javafx.scene.layout.VBox;
 /**
  * 스코어보드 화면
  *
- * 받은 ScoreBoard를 1~10위 표로 보여주기만 하고, 기록을 바꾸지 않는다
- * 방금 추가된 기록이 있으면 그 줄을 강조한다
- * 아래쪽에서 '시작 메뉴로 / 게임 종료'를 고른다 (실제로 무엇을 할지는 ScreenManager가 정함)
- * ←→는 비워 둔다: 나중에 난이도별 스코어보드를 넘겨 보는 데 쓸 예정
+ * 난이도별 순위표를 받아서 1~10위 표로 보여주기만 하고, 기록을 바꾸지 않는다
+ * ←→로 보고 싶은 난이도의 순위표로 넘긴다
+ * 방금 추가된 기록이 있으면, 그 기록이 들어간 난이도의 순위표에서만 그 줄을 강조한다
+ * 아래쪽에서 '시작 메뉴로 / 게임 종료'를 ↑↓로 고른다 (실제로 무엇을 할지는 ScreenManager가 정함)
  */
 public class ScoreBoardController {
 
@@ -36,6 +38,9 @@ public class ScoreBoardController {
     private BorderPane root;
 
     @FXML
+    private Label difficultyLabel;
+
+    @FXML
     private VBox rowBox;
 
     @FXML
@@ -43,6 +48,11 @@ public class ScoreBoardController {
 
     private MenuModel menu;
     private Runnable onMenu = () -> { };
+
+    private Map<Difficulty, ScoreBoard> boards;
+    private Difficulty shown;               // 지금 보고 있는 난이도
+    private Difficulty highlightDifficulty; // 방금 기록이 들어간 난이도
+    private int highlightRank = NO_HIGHLIGHT;
 
     // 이전 화면에서 누르고 있던 키가 이 화면에 들어오는 것을 막는다 (아래 onKeyReleased 참고)
     private boolean ready = false;
@@ -58,20 +68,18 @@ public class ScoreBoardController {
     }
 
     /**
-     * @param board          보여줄 순위표
-     * @param highlightRank  강조할 줄 (0 = 1위). 없으면 NO_HIGHLIGHT
+     * @param boards         난이도별 순위표
+     * @param difficulty     처음 보여줄 난이도 (방금 기록이 있으면 그 기록의 난이도)
+     * @param highlightRank  처음 보여주는 난이도에서 강조할 줄 (0 = 1위). 없으면 NO_HIGHLIGHT
      * @param onMenu         '시작 메뉴로' 또는 Esc
      * @param onExit         '게임 종료'
      */
-    public void show(ScoreBoard board, int highlightRank, Runnable onMenu, Runnable onExit) {
+    public void show(Map<Difficulty, ScoreBoard> boards, Difficulty difficulty, int highlightRank,
+                     Runnable onMenu, Runnable onExit) {
+        this.boards = boards;
+        this.highlightDifficulty = difficulty;
+        this.highlightRank = highlightRank;
         this.onMenu = onMenu;
-
-        List<ScoreEntry> entries = board.entries();
-        rowBox.getChildren().clear();
-        for (int rank = 0; rank < ScoreBoard.CAPACITY; rank++) {
-            ScoreEntry entry = rank < entries.size() ? entries.get(rank) : null;
-            rowBox.getChildren().add(createRow(rank, entry, rank == highlightRank));
-        }
 
         menu = new MenuModel(List.of(
                 new MenuEntry("시작 메뉴로", onMenu),
@@ -83,6 +91,8 @@ public class ScoreBoardController {
             menuBox.getChildren().add(label);
         }
         showSelection();
+
+        showBoard(difficulty);
     }
 
     @FXML
@@ -92,6 +102,8 @@ public class ScoreBoardController {
             return;
         }
         switch (event.getCode()) {
+            case LEFT -> showBoard(shown.previous());
+            case RIGHT -> showBoard(shown.next());
             case UP -> {
                 menu.moveUp();
                 showSelection();
@@ -117,6 +129,21 @@ public class ScoreBoardController {
     @FXML
     private void onKeyReleased(KeyEvent event) {
         ready = true;
+    }
+
+    // 이 난이도의 순위표로 표를 다시 채운다
+    private void showBoard(Difficulty difficulty) {
+        shown = difficulty;
+        difficultyLabel.setText("◀  " + difficulty.displayName() + "  ▶");
+
+        List<ScoreEntry> entries = boards.getOrDefault(difficulty, new ScoreBoard()).entries();
+        int highlight = (difficulty == highlightDifficulty) ? highlightRank : NO_HIGHLIGHT;
+
+        rowBox.getChildren().clear();
+        for (int rank = 0; rank < ScoreBoard.CAPACITY; rank++) {
+            ScoreEntry entry = rank < entries.size() ? entries.get(rank) : null;
+            rowBox.getChildren().add(createRow(rank, entry, rank == highlight));
+        }
     }
 
     // 선택된 항목만 강조 표시 (시작 메뉴와 같은 방식)
