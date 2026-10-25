@@ -16,10 +16,6 @@ import java.util.Properties;
  * 설정(save.properties)과 다른 파일에 저장해서, 설정을 초기화해도 기록은 남는다
  * 기록을 지우는 건 delete()뿐이다 (설정 화면의 '기록 초기화')
  *
- * 파일 형식 (순위 0 = 1위)
- *   0.name=예영
- *   0.score=12000
- *   1.name=...
  */
 public class ScoreStore {
 
