@@ -14,6 +14,7 @@ import com.tetr11s.settings.KeyBindings;
 import com.tetr11s.settings.SettingsView;
 
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -29,6 +30,7 @@ public class ScreenManager {
     private final Stage stage;
     private final ScoreStore scoreStore = new ScoreStore();
     private GameScreen currentScreen;
+    private ChangeListener<Boolean> focusListener; 
 
     public ScreenManager(Stage stage){
         this.stage=stage;
@@ -36,11 +38,14 @@ public class ScreenManager {
 
     /**
      * 이전 currentScreen 이 남아, 계속 게임이 돌아가는 경우를 막기 위해 null 로 초기화
+     * listener 가 게임이 끝나도 남아있어, 이를 없애는 기능 추가
      */
     private void stopCurrentGame(){
         if(currentScreen != null){
+            stage.focusedProperty().removeListener(focusListener);
             currentScreen.stop();
             currentScreen=null;
+            focusListener=null; 
         }
     }
 
@@ -66,7 +71,7 @@ public class ScreenManager {
     public void showGame(){
         stopCurrentGame();
 
-        currentScreen = GameScreen.create(score -> {
+        GameScreen screen = GameScreen.create(score -> {
             try {
                 endGame(score);
             } catch (IOException e) {
@@ -75,11 +80,14 @@ public class ScreenManager {
         });
 
         // 다른 창으로 전환하면 키를 뗀 신호가 오지 않아서, 블럭이 계속 움직이는 문제를 막는다
-        stage.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+        // 이 판의 screen 만 가리키고, 판이 끝나면 stopCurrentGame 에서 제거된다
+        focusListener = (obs, wasFocused, isFocused) -> {
             if (!isFocused) {
-                currentScreen.releaseAllKeys();
+                screen.releaseAllKeys();
             }
-        });
+        };
+        stage.focusedProperty().addListener(focusListener);
+        currentScreen = screen;
 
         stage.setTitle("Tetr11s");
         stage.setScene(currentScreen.scene());
