@@ -1,15 +1,18 @@
 package com.tetr11s.settings;
 
-import com.tetr11s.game.tetromino.Tetromino;
-import com.tetr11s.game.controller.GameAction;
-
 import java.util.EnumMap;
 import java.util.Map;
+
+import com.tetr11s.game.controller.GameAction;
+import com.tetr11s.game.tetromino.Tetromino;
+import com.tetr11s.score.ScoreStore;
+
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
@@ -21,7 +24,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 
 // 설정 화면. 색상, 키 바인딩, 프리셋을 관리한다.
-// todo: 스코어 보드 기록 초기화 비롯한 관리가 가능해야 함
+// 스코어보드 기록은 설정과 다른 파일(ScoreStore)에 있어서, '기록 초기화'로만 지운다
 
 public class SettingsView extends BorderPane {
     private static final double SAMPLE_CELL_SIZE = 54;
@@ -158,8 +161,11 @@ public class SettingsView extends BorderPane {
             SettingsStore.delete();
             showMessage("설정 파일 삭제", "save.properties를 삭제했습니다. 다음 실행부터 기본 설정을 사용합니다.");
         });
+        Button resetScores = new Button("기록 초기화");          // ← 추가
+        resetScores.setTextFill(Color.ORANGE);
+        resetScores.setOnAction(event -> resetScoreboard());
 
-        HBox footer = new HBox(8, save, load, normal, reset, delete, back);
+        HBox footer = new HBox(8, save, load, normal, reset, resetScores, delete, back);
         footer.setAlignment(Pos.CENTER);
         return footer;
     }
@@ -280,6 +286,25 @@ public class SettingsView extends BorderPane {
             SettingsStore.saveScale(1.0);
             drawSamples();
             showMessage("설정 초기화", "모든 설정을 기본값으로 되돌렸습니다.");
+    }
+
+    // 스코어보드 기록만 지운다 (설정은 그대로). 되돌릴 수 없으므로 한 번 더 묻는다
+    private void resetScoreboard() {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                "스코어보드 기록을 모두 지울까요?\n지운 기록은 되돌릴 수 없습니다.",
+                ButtonType.OK, ButtonType.CANCEL);
+        confirm.setTitle("기록 초기화");
+        confirm.setHeaderText(null);
+        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return;
+        }
+
+        try {
+            new ScoreStore().delete();
+            showMessage("기록 초기화", "스코어보드 기록을 모두 지웠습니다.");
+        } catch (IllegalStateException e) {
+            showMessage("기록 초기화 실패", e.getMessage());
+        }
     }
 
     private void updateKeyButtons() {

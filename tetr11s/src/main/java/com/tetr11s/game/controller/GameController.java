@@ -1,8 +1,11 @@
 package com.tetr11s.game.controller;
 
+import java.util.function.IntConsumer;
+
 import com.tetr11s.game.GameManager;
 import com.tetr11s.game.view.GameView;
 import com.tetr11s.settings.KeyBindings;
+
 import javafx.animation.AnimationTimer;
 import javafx.scene.input.KeyEvent;
 
@@ -15,7 +18,7 @@ public class GameController {
     private final GameManager game;
     private final GameView view;
     private final KeyBindings bindings;
-    private final Runnable onQuit;
+    private final IntConsumer onQuit;
 
     private final KeyRepeater repeater = new KeyRepeater();
     private final AnimationTimer gameLoop;
@@ -25,7 +28,7 @@ public class GameController {
     /**
      * @param onQuit 게임을 종료할 때 실행할 일 (지금은 프로그램 종료, 나중에 시작 메뉴로 이동)
      */
-    public GameController(GameManager game, GameView view, KeyBindings bindings, Runnable onQuit) {
+    public GameController(GameManager game, GameView view, KeyBindings bindings, IntConsumer onQuit) {
         this.game = game;
         this.view = view;
         this.bindings = bindings;
@@ -133,7 +136,7 @@ public class GameController {
      */
     private void quit() {
         if (game.isPaused() || game.isGameOver()) {
-            onQuit.run(); //stop 은 ScreenManager 로 관리
+            onQuit.accept(game.getScore()); //stop 은 ScreenManager 로 관리
         } else {
             togglePause();
         }

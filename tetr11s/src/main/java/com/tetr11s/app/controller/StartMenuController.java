@@ -1,10 +1,12 @@
 package com.tetr11s.app.controller;
 
+import java.io.IOException;
 import java.util.List;
 
 import com.tetr11s.app.ScreenManager;
 import com.tetr11s.app.menu.MenuEntry;
 import com.tetr11s.app.menu.MenuModel;
+import com.tetr11s.settings.SettingsStore;
 
 import javafx.application.Platform;
 import javafx.css.PseudoClass;
@@ -13,7 +15,6 @@ import javafx.scene.control.Label;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
-import com.tetr11s.settings.SettingsStore;
 
 /**
 * MenuModel 을 생성하고, 안에 MenuEntry 들을 추가한다
@@ -101,7 +102,11 @@ public class StartMenuController {
     }
 
     private void openScoreboard() {
-        showNotReady("스코어보드");
+        try {
+            screenManager.showScoreboard();
+        } catch (IOException e) {
+            throw new RuntimeException("스코어보드 화면을 열 수 없습니다.", e);
+        }
     }
 
     private void exitGame() {
@@ -122,7 +127,4 @@ public class StartMenuController {
         messageLabel.setText("모든 설정을 초기화했습니다.");
     }
 
-    private void showNotReady(String screenName) {
-        messageLabel.setText(screenName + " 화면은 아직 준비 중입니다.");
-    }
 }
