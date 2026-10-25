@@ -23,8 +23,12 @@ public class GameScreen {
         this.scene=scene;
     }
 
-    public static GameScreen create(IntConsumer onQuit){
-        GameManager game = new GameManager();
+    /**
+     * @param difficulty 이번 판의 난이도 (ScreenManager가 게임을 시작할 때 설정에서 읽어 넘긴다)
+     * @param onQuit     게임을 끝낼 때 실행할 일. 끝난 시점의 점수를 받는다
+     */
+    public static GameScreen create(Difficulty difficulty, IntConsumer onQuit){
+        GameManager game = new GameManager(difficulty);
         KeyBindings bindings = new KeyBindings();
         GameView view = new GameView(game, new DefaultPalette(), bindings);
 
