@@ -3,6 +3,7 @@ package com.tetr11s.settings;
 import java.util.EnumMap;
 import java.util.Map;
 
+import com.tetr11s.game.Difficulty;
 import com.tetr11s.game.controller.GameAction;
 import com.tetr11s.game.tetromino.Tetromino;
 import com.tetr11s.score.ScoreStore;
@@ -15,7 +16,10 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.RadioButton;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Toggle;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -36,6 +40,7 @@ public class SettingsView extends BorderPane {
     private final Label selectedLabel = new Label();
     private final Label valueLabel = new Label();
     private final TextField presetName = new TextField();
+    private final ToggleGroup difficultyGroup = new ToggleGroup();
     private final Map<GameAction, Button> keyButtons = new EnumMap<>(GameAction.class);
     private int selectedIndex = -1;
     private double lastX;
@@ -67,9 +72,44 @@ public class SettingsView extends BorderPane {
 
         HBox controls = new HBox(10, colorblind, enabled);
         controls.setAlignment(Pos.CENTER);
-        VBox top = new VBox(10, title("설정"), controls);
+        VBox top = new VBox(10, title("설정"), controls, createDifficultySelector());
         top.setAlignment(Pos.CENTER);
         return top;
+    }
+
+    // 난이도 선택. 고르는 즉시 저장하고, 다음 게임부터 적용된다
+    private HBox createDifficultySelector() {
+        Label label = new Label("난이도");
+        label.setTextFill(Color.WHITE);
+
+        HBox selector = new HBox(12, label);
+        for (Difficulty difficulty : Difficulty.values()) {
+            RadioButton option = new RadioButton(difficulty.displayName());
+            option.setUserData(difficulty);
+            option.setToggleGroup(difficultyGroup);
+            option.setTextFill(Color.WHITE);
+            selector.getChildren().add(option);
+        }
+
+        // 저장된 난이도를 먼저 표시한 뒤에 저장 리스너를 붙인다 (처음 표시할 때는 저장하지 않도록)
+        selectDifficulty(SettingsStore.loadDifficulty());
+        difficultyGroup.selectedToggleProperty().addListener((observable, oldToggle, newToggle) -> {
+            if (newToggle != null) {
+                SettingsStore.saveDifficulty((Difficulty) newToggle.getUserData());
+            }
+        });
+
+        selector.setAlignment(Pos.CENTER);
+        return selector;
+    }
+
+    // 화면의 난이도 선택 표시를 바꾼다
+    private void selectDifficulty(Difficulty difficulty) {
+        for (Toggle toggle : difficultyGroup.getToggles()) {
+            if (toggle.getUserData() == difficulty) {
+                difficultyGroup.selectToggle(toggle);
+            }
+        }
     }
 
     private VBox createEditor() {
@@ -284,6 +324,7 @@ public class SettingsView extends BorderPane {
             bindings.saveActive();
             updateKeyButtons();
             SettingsStore.saveScale(1.0);
+            selectDifficulty(Difficulty.DEFAULT);
             drawSamples();
             showMessage("설정 초기화", "모든 설정을 기본값으로 되돌렸습니다.");
     }
