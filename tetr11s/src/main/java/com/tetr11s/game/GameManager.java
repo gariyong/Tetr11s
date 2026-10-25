@@ -4,9 +4,9 @@ import java.util.function.Supplier;
 
 import com.tetr11s.game.tetromino.Block;
 import com.tetr11s.game.tetromino.Cell;
-import com.tetr11s.game.tetromino.SevenBagGenerator;
 import com.tetr11s.game.tetromino.Tetromino;
 import com.tetr11s.game.tetromino.WallKick;
+import com.tetr11s.game.tetromino.RouletteWheelGenerator;
 
 /**
  * 테트리스 한 판의 규칙을 담당
@@ -25,7 +25,7 @@ public class GameManager {
 
     // 기본 게임: 10x22 보드(버퍼 행 2개 포함), 7-bag 생성
     public GameManager() {
-        this(new Board(), new SevenBagGenerator());
+        this(new Board(), new RouletteWheelGenerator());
     }
 
     /**
