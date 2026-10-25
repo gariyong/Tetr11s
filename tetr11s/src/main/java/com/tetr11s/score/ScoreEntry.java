@@ -6,13 +6,18 @@ package com.tetr11s.score;
  */
 public record ScoreEntry(String name, int score) {
 
+    public static final int MAX_NAME_LENGTH = 8;
+
     public ScoreEntry {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("이름은 비어 있을 수 없음");
         }
+        name = name.strip();
+        if (name.codePointCount(0, name.length()) > MAX_NAME_LENGTH) {
+            throw new IllegalArgumentException("이름은 " + MAX_NAME_LENGTH + "자 이하여야 함: " + name);
+        }
         if (score < 0) {
             throw new IllegalArgumentException("점수는 0 이상이어야 함: " + score);
         }
-        name = name.strip();
     }
 }
