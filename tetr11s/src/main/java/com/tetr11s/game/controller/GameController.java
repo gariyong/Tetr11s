@@ -14,6 +14,9 @@ import javafx.scene.input.KeyEvent;
  * gameLoop(매 프레임)에서 꾹 누른 키 반복과 자동 낙하(현재 레벨의 낙하 간격마다 tick)를 처리한다.
  */
 public class GameController {
+    // 줄 삭제 연출: FLASH_INTERVAL_MS마다 흰색 ↔ 원래 색을 바꾸고, CLEAR_DURATION_MS가 지나면 실제로 지운다
+    private static final long FLASH_INTERVAL_MS = 80;
+    private static final long CLEAR_DURATION_MS = 400;
 
     private final GameManager game;
     private final GameView view;
@@ -24,6 +27,8 @@ public class GameController {
     private final AnimationTimer gameLoop;
 
     private long lastDropMs;
+    private long lastFrameMs;      // 직전 프레임 시각 (프레임 사이에 흐른 시간 계산용)
+    private long clearElapsedMs;   // 지금 줄 삭제 연출이 진행된 시간 (일시정지 동안은 늘지 않음)
 
     /**
      * @param onQuit 게임을 종료할 때 실행할 일 (지금은 프로그램 종료, 나중에 시작 메뉴로 이동)
@@ -45,6 +50,8 @@ public class GameController {
     public void start() {
         game.start();
         lastDropMs = nowMillis();
+        lastFrameMs = lastDropMs;
+        clearElapsedMs = 0;
         view.refresh();
         gameLoop.start();
     }
@@ -95,25 +102,40 @@ public class GameController {
 
     // 매 프레임 호출
     private void onFrame(long now) {
+        long elapsed = now - lastFrameMs;   // 직전 프레임부터 흐른 시간
+        lastFrameMs = now;
+
         // 꾹 누른 키 반복
         for (GameAction action : repeater.update(now)) {
             perform(action);
         }
 
-        // 자동 낙하
         if (game.isPaused() || game.isGameOver()) {
             lastDropMs = now;   // 멈춘 동안 시간이 쌓이지 않게
             return;
         }
 
+        // 줄 삭제 연출 중: 자동 낙하 대신 연출 시간을 진행한다
+        if (game.isClearing()) {
+            lastDropMs = now;   // 연출 동안에도 낙하 시간이 쌓이지 않게
+            clearElapsedMs += elapsed;
+            if (clearElapsedMs >= CLEAR_DURATION_MS) {
+                game.finishLineClear();
+                clearElapsedMs = 0;
+            }
+            update();
+            return;
+        }
+
+        // 자동 낙하
         boolean dropped = false;
-        
+
         while (now - lastDropMs >= game.getDropIntervalMillis()) {
             lastDropMs += game.getDropIntervalMillis();
             game.tick();
             dropped = true;
 
-            if (game.isGameOver()) {
+            if (game.isGameOver() || game.isClearing()) {
                 break;
             }
         }
@@ -143,10 +165,16 @@ public class GameController {
     }
 
     private void update() {
+        view.setLineClearFlash(isFlashOn());
         view.refresh();
         if (game.isGameOver()) {
             repeater.cancelRepeats();
         }
+    }
+
+    // 줄 삭제 연출 중 지금이 흰색 차례인가 (0~80ms 흰색, 80~160ms 원래 색, 160~240ms 흰색 ...)
+    private boolean isFlashOn() {
+        return game.isClearing() && (clearElapsedMs / FLASH_INTERVAL_MS) % 2 == 0;
     }
 
     private static long nowMillis() {
