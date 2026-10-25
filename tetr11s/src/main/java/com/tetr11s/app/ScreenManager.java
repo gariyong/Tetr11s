@@ -2,12 +2,18 @@ package com.tetr11s.app;
 
 import java.io.IOException;
 
+import com.tetr11s.app.controller.NameInputController;
+import com.tetr11s.app.controller.ScoreBoardController;
 import com.tetr11s.app.controller.StartMenuController;
 import com.tetr11s.game.GameScreen;
-import com.tetr11s.settings.SettingsView;
+import com.tetr11s.score.ScoreBoard;
+import com.tetr11s.score.ScoreEntry;
+import com.tetr11s.score.ScoreStore;
 import com.tetr11s.settings.DefaultPalette;
 import com.tetr11s.settings.KeyBindings;
+import com.tetr11s.settings.SettingsView;
 
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -21,6 +27,7 @@ import javafx.stage.Stage;
 
 public class ScreenManager {
     private final Stage stage;
+    private final ScoreStore scoreStore = new ScoreStore();
     private GameScreen currentScreen;
 
     public ScreenManager(Stage stage){
@@ -47,6 +54,7 @@ public class ScreenManager {
         Parent root = loader.load();
         StartMenuController controller = loader.getController();
         controller.setScreenManager(this); 
+        stage.setTitle("Tetr11s");
         stage.setScene(new Scene(root));
 
         stage.show();
@@ -58,9 +66,9 @@ public class ScreenManager {
     public void showGame(){
         stopCurrentGame();
 
-        currentScreen = GameScreen.create(() -> {
+        currentScreen = GameScreen.create(score -> {
             try {
-                showStartMenu();
+                endGame(score);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -95,6 +103,83 @@ public class ScreenManager {
         stage.setScene(new Scene(view));
         stage.setResizable(false);
         stage.show();
+    }
+
+    /**
+     * 스코어보드 화면 (시작 메뉴의 '스코어보드'에서 들어올 때). 강조할 기록 없이 저장된 순위표를 보여준다
+     */
+    public void showScoreboard() throws IOException {
+        showScoreboard(scoreStore.load(), ScoreBoardController.NO_HIGHLIGHT);
+    }
+
+    /**
+     * 스코어보드 화면. 아래쪽에서 '시작 메뉴로' 또는 '게임 종료'를 고른다
+     *
+     * @param highlightRank 방금 추가된 기록의 순위 (0 = 1위). 없으면 NO_HIGHLIGHT
+     */
+    private void showScoreboard(ScoreBoard board, int highlightRank) throws IOException {
+        stopCurrentGame();
+
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/score_board.fxml"));
+        Parent root = loader.load();
+        ScoreBoardController controller = loader.getController();
+        controller.show(board, highlightRank, () -> {
+            try {
+                showStartMenu();
+            } catch (IOException e) {
+                throw new RuntimeException("시작 메뉴를 열 수 없습니다.", e);
+            }
+        }, Platform::exit);
+
+        stage.setTitle("Tetr11s - 스코어보드");
+        stage.setScene(new Scene(root));
+        stage.show();
+    }
+
+    /**
+     * 게임이 끝났을 때 (게임오버 후 Esc, 일시정지 후 Esc)
+     * 순위권 점수면 이름 입력 화면, 아니면 바로 스코어보드로 간다
+     */
+    private void endGame(int score) throws IOException {
+        if (score > 0 && scoreStore.load().qualifies(score)) {
+            showNameInput(score);
+        } else {
+            showScoreboard();
+        }
+    }
+
+    /**
+     * 이름 입력 화면. 이름이 확정되면 기록을 저장하고 스코어보드로 간다
+     */
+    private void showNameInput(int score) throws IOException {
+        stopCurrentGame();
+
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/name_input.fxml"));
+        Parent root = loader.load();
+        NameInputController controller = loader.getController();
+        controller.show(score, name -> {
+            ScoreBoard board = scoreStore.load();
+            int rank = board.add(new ScoreEntry(name, score));
+            save(board);
+            try {
+                showScoreboard(board, rank);
+            } catch (IOException e) {
+                throw new RuntimeException("스코어보드 화면을 열 수 없습니다.", e);
+            }
+        });
+
+        stage.setTitle("Tetr11s - 기록");
+        stage.setScene(new Scene(root));
+        stage.show();
+    }
+
+    // 기록을 순위표에 넣고 파일에 저장한다. 저장에 실패해도 게임은 계속된다
+    private void save(ScoreBoard board) {
+        try {
+            scoreStore.save(board);
+        } catch (IllegalStateException e) {
+            System.err.println("기록을 저장하지 못했습니다: " + e.getMessage());
+        }
     }
     
 }

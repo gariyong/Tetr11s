@@ -1,5 +1,7 @@
 package com.tetr11s.game;
 
+import java.util.function.IntConsumer;
+
 import com.tetr11s.game.controller.GameController;
 import com.tetr11s.game.view.GameView;
 import com.tetr11s.settings.DefaultPalette;
@@ -21,7 +23,7 @@ public class GameScreen {
         this.scene=scene;
     }
 
-    public static GameScreen create(Runnable onQuit){
+    public static GameScreen create(IntConsumer onQuit){
         GameManager game = new GameManager();
         KeyBindings bindings = new KeyBindings();
         GameView view = new GameView(game, new DefaultPalette(), bindings);
