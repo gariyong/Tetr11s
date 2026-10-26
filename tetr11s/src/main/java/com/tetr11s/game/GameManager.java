@@ -8,6 +8,7 @@ import com.tetr11s.game.tetromino.Cell;
 import com.tetr11s.game.tetromino.RouletteWheelGenerator;
 import com.tetr11s.game.tetromino.Tetromino;
 import com.tetr11s.game.tetromino.WallKick;
+import com.tetr11s.game.item.Item;
 
 /**
  * 테트리스 한 판의 규칙을 담당
@@ -15,17 +16,18 @@ import com.tetr11s.game.tetromino.WallKick;
  */
 public class GameManager {
 
-    private final Board board;
-    private final Supplier<Tetromino> nextType;
-    private final Difficulty difficulty;
-    private final ScoreManager score;
+    protected final boolean mode;
+    protected final Board board;
+    protected final Supplier<Tetromino> nextType;
+    protected final Difficulty difficulty;
+    protected final ScoreManager score;
 
-    private Block current;
-    private Tetromino next;
-    private boolean gameOver;
-    private boolean paused;
+    protected Block current;
+    protected Tetromino next;
+    protected boolean gameOver;
+    protected boolean paused;
     // 지금 지우는 중인 줄 (비어 있으면 줄 삭제 중이 아님)
-    private List<Integer> clearingRows = List.of();
+    protected List<Integer> clearingRows = List.of();
 
     // 기본 게임: Normal 난이도
     public GameManager() {
@@ -39,7 +41,7 @@ public class GameManager {
     public GameManager(Difficulty difficulty) {
         this(new Board(),
                 new RouletteWheelGenerator(RouletteWheelGenerator.weightsWithI(difficulty.iBlockWeight())),
-                difficulty);
+                difficulty, false);
     }
 
     /**
@@ -51,10 +53,15 @@ public class GameManager {
     }
 
     public GameManager(Board board, Supplier<Tetromino> nextType, Difficulty difficulty) {
+        this(board, nextType, difficulty, false);
+    }
+
+    protected GameManager(Board board, Supplier<Tetromino> nextType, Difficulty difficulty, boolean itemMode) {
         this.board = board;
         this.nextType = nextType;
         this.difficulty = difficulty;
-        this.score = new ScoreManager(difficulty);
+        this.mode = itemMode;
+        this.score = new ScoreManager(difficulty, itemMode);
     }
 
     // 새 게임 시작: 보드를 비우고 첫 블럭을 생성
@@ -180,6 +187,10 @@ public class GameManager {
         return next;
     }
 
+    public Item getNextItemType() {
+        return null;
+    }
+
     public boolean isGameOver() {
         return gameOver;
     }
@@ -249,8 +260,9 @@ public class GameManager {
         return false;
     }
 
-    private void lockAndSpawn() {
+    protected void lockAndSpawn() {
         board.lock(current);
+        onBlockLocked(current);
 
         // 락 아웃: 블럭 전체가 보이지 않는 버퍼 영역에 고정되면 게임오버
         boolean allInBuffer = current.cells().stream()
@@ -273,7 +285,10 @@ public class GameManager {
         current = null;   // 방금 블럭은 보드에 고정됐으니 따로 그리지 않는다
     }
 
-    private void spawnNext() {
+    protected void onBlockLocked(Block locked) {
+    }
+
+    protected void spawnNext() {
         current = Block.spawn(next, board.width());
         next = nextType.get();
 

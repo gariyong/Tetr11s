@@ -23,19 +23,30 @@ public class ScoreManager {
     private static final int[] LINE_CLEAR_SCORES = {0, 100, 300, 500, 800};
 
     private final Difficulty difficulty;
+    private final boolean isItemMode;
 
     private int score;
     private int level;
     private int lines;
 
     public ScoreManager() {
-        this(Difficulty.DEFAULT);
+        this(Difficulty.DEFAULT, false);
+    }
+
+    public ScoreManager(Difficulty difficulty) {
+        this(difficulty, false);
     }
 
     /** @param difficulty 레벨이 오를 때 빨라지는 정도를 정한다 */
-    public ScoreManager(Difficulty difficulty){
+    public ScoreManager(Difficulty difficulty, boolean isItemMode) {
         this.difficulty = difficulty;
+        this.isItemMode= isItemMode;
         reset();
+    }
+
+    // 아이템 모드인지 여부를 반환
+    public boolean isItemMode() {
+        return isItemMode;
     }
 
     // 새 게임: 점수 0, 레벨 1, 줄 0

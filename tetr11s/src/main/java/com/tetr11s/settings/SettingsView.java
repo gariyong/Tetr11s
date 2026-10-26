@@ -227,6 +227,10 @@ public class SettingsView extends BorderPane {
             }
         });
         section.getChildren().add(settingRow("◆  난이도", difficulty, new Label("")));
+        CheckBox bugMode = checkBox("◇ 템전 버그판 (5번 lock마다 아이템 블록)");
+        bugMode.setSelected(SettingsStore.loadItemBugMode());
+        bugMode.setOnAction(event -> SettingsStore.saveItemBugMode(bugMode.isSelected()));
+        section.getChildren().add(settingRow("", bugMode, new Label("테스트용")));
         section.getChildren().add(createKeySettings());
         return section;
     }

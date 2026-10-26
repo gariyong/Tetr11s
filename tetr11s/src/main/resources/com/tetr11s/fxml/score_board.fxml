@@ -14,6 +14,7 @@
             <VBox alignment="CENTER" spacing="2">
                 <children>
                     <Label text="SCOREBOARD" styleClass="title"/>
+                    <Label fx:id="modeLabel" styleClass="difficulty-label"/>
                     <!-- 지금 보고 있는 난이도. ←→로 바꾼다 -->
                     <Label fx:id="difficultyLabel" styleClass="difficulty-label"/>
                 </children>
@@ -44,7 +45,7 @@
                              시작 메뉴처럼 세로로 놓고 ↑↓로 고른다 (←→는 난이도 전환)
                              -->
                              <VBox fx:id="menuBox" alignment="CENTER" spacing="4"/>
-                             <Label text="←→ 난이도   ↑↓ 선택   Enter 확인   Esc 시작 메뉴로" styleClass="key-hint"/>                      </children>
+                             <Label text="Tab 모드 전환   ←→ 난이도   ↑↓ 선택   Enter 확인   Esc 시작 메뉴로" styleClass="key-hint"/>                      </children>
                </VBox>
         </bottom>
 </BorderPane>

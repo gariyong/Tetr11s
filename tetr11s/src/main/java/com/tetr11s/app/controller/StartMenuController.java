@@ -27,7 +27,8 @@ public class StartMenuController {
     private ScreenManager screenManager;
 
     private final MenuModel menu = new MenuModel(List.of(
-            new MenuEntry("게임 시작", this::startGame),
+            new MenuEntry("게임 시작", () -> screenManager.showGame(false)),
+            new MenuEntry("아이템전 시작", () -> screenManager.showGame(true)),
             new MenuEntry("설정", this::openSettings),
             new MenuEntry("스코어보드", this::openScoreboard),
             new MenuEntry("게임 종료", this::exitGame)
@@ -61,6 +62,7 @@ public class StartMenuController {
                 root.requestFocus();
             }
         });
+
     }
 
     //UP, DOWN, ENTER 로 이벤트를 나눔
@@ -89,11 +91,6 @@ public class StartMenuController {
             menuBox.getChildren().get(i).pseudoClassStateChanged(SELECTED, i == menu.selectedIndex());
         }
         messageLabel.setText("");
-    }
-
-    //ScreenManager 를 통해 게임시작
-    private void startGame() {
-        screenManager.showGame();
     }
 
     private void openSettings() {

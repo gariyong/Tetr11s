@@ -2,6 +2,7 @@ package com.tetr11s.game.view;
 
 import com.tetr11s.game.tetromino.Cell;
 import com.tetr11s.game.tetromino.Tetromino;
+import com.tetr11s.game.item.Item;
 import com.tetr11s.settings.DefaultPalette;
 
 import javafx.scene.canvas.Canvas;
@@ -28,6 +29,10 @@ public class NextBlockView extends Canvas {
     }
 
     public void render(Tetromino next) {
+        render(next, null);
+    }
+
+    public void render(Tetromino next, Item item) {
         clear();
         if (next == null) {
             return;
@@ -36,6 +41,20 @@ public class NextBlockView extends Canvas {
         for (Cell c : next.cells(0)) {
             draw(c, next);
         }
+        if (item != null && !next.cells(0).isEmpty()) {
+            drawItem(next.cells(0).get(0), item);
+        }
+    }
+
+    private void drawItem(Cell cell, Item item) {
+        double x = PADDING + cell.col() * BoardView.CELL_SIZE;
+        double y = PADDING + cell.row() * BoardView.CELL_SIZE;
+        double size = BoardView.CELL_SIZE - CELL_GAP;
+        graphics.setFill(item == Item.W ? Color.DARKSLATEGRAY : Color.RED);
+        graphics.fillRect(x, y, size, size);
+        graphics.setFill(Color.WHITE);
+        graphics.setFont(javafx.scene.text.Font.font("Monospaced", javafx.scene.text.FontWeight.BOLD, 14));
+        graphics.fillText(item.name(), x + 7, y + 12);
     }
 
     // 다음 블럭 표시할 땐 블럭만 보이도록 그리드를 지움

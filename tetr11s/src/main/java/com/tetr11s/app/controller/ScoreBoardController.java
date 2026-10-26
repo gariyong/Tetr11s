@@ -41,6 +41,9 @@ public class ScoreBoardController {
     private Label difficultyLabel;
 
     @FXML
+    private Label modeLabel;
+
+    @FXML
     private VBox rowBox;
 
     @FXML
@@ -50,6 +53,8 @@ public class ScoreBoardController {
     private Runnable onMenu = () -> { };
 
     private Map<Difficulty, ScoreBoard> boards;
+    private Map<Difficulty, ScoreBoard> itemBoards;
+    private boolean itemMode;
     private Difficulty shown;               // 지금 보고 있는 난이도
     private Difficulty highlightDifficulty; // 방금 기록이 들어간 난이도
     private int highlightRank = NO_HIGHLIGHT;
@@ -74,9 +79,12 @@ public class ScoreBoardController {
      * @param onMenu         '시작 메뉴로' 또는 Esc
      * @param onExit         '게임 종료'
      */
-    public void show(Map<Difficulty, ScoreBoard> boards, Difficulty difficulty, int highlightRank,
+    public void show(Map<Difficulty, ScoreBoard> boards, Map<Difficulty, ScoreBoard> itemBoards,
+                     Difficulty difficulty, int highlightRank, boolean itemMode,
                      Runnable onMenu, Runnable onExit) {
         this.boards = boards;
+        this.itemBoards = itemBoards;
+        this.itemMode = itemMode;
         this.highlightDifficulty = difficulty;
         this.highlightRank = highlightRank;
         this.onMenu = onMenu;
@@ -104,6 +112,10 @@ public class ScoreBoardController {
         switch (event.getCode()) {
             case LEFT -> showBoard(shown.previous());
             case RIGHT -> showBoard(shown.next());
+            case TAB -> {
+                itemMode = !itemMode;
+                showBoard(shown);
+            }
             case UP -> {
                 menu.moveUp();
                 showSelection();
@@ -134,9 +146,11 @@ public class ScoreBoardController {
     // 이 난이도의 순위표로 표를 다시 채운다
     private void showBoard(Difficulty difficulty) {
         shown = difficulty;
+        modeLabel.setText(itemMode ? "ITEM MODE" : "NORMAL MODE");
         difficultyLabel.setText("◀  " + difficulty.displayName() + "  ▶");
 
-        List<ScoreEntry> entries = boards.getOrDefault(difficulty, new ScoreBoard()).entries();
+        Map<Difficulty, ScoreBoard> selectedBoards = itemMode ? itemBoards : boards;
+        List<ScoreEntry> entries = selectedBoards.getOrDefault(difficulty, new ScoreBoard()).entries();
         int highlight = (difficulty == highlightDifficulty) ? highlightRank : NO_HIGHLIGHT;
 
         rowBox.getChildren().clear();

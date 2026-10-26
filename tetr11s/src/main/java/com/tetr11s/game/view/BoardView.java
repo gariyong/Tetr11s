@@ -5,6 +5,8 @@ import com.tetr11s.game.GameManager;
 import com.tetr11s.game.tetromino.Block;
 import com.tetr11s.game.tetromino.Cell;
 import com.tetr11s.game.tetromino.Tetromino;
+import com.tetr11s.game.item.Item;
+import com.tetr11s.game.ItemGameManager;
 import com.tetr11s.settings.DefaultPalette;
 
 import javafx.scene.canvas.Canvas;
@@ -65,6 +67,10 @@ public class BoardView extends Canvas {
                 } else {
                     set(r, c, palette.getSymbol(type), palette.getColor(type), type);
                 }
+                Item item = board.getItem(r + Board.BUFFER_ROWS, c);
+                if (item != null) {
+                    drawItem(r, c, item);
+                }
             }
         }
 
@@ -97,6 +103,10 @@ public class BoardView extends Canvas {
         // 3. 현재 블럭
         for (Cell cell : current.cells()) {
             draw(cell, palette.getSymbol(current.type()), palette.getColor(current.type()), current.type());
+            if (game instanceof ItemGameManager itemGame && itemGame.getCurrentItem() != null
+                    && itemGame.getCurrentItemCells().contains(cell)) {
+                drawItem(cell.row() - Board.BUFFER_ROWS, cell.col(), itemGame.getCurrentItem());
+            }
         }
     }
 
@@ -159,6 +169,32 @@ public class BoardView extends Canvas {
         graphics.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
         graphics.setStroke(GRID_COLOR);
         graphics.strokeRect(x, y, size, size);
+    }
+
+    private void drawItem(int r, int c, Item item) {
+        double x = PADDING + c * CELL_SIZE;
+        double y = PADDING + r * CELL_SIZE;
+        double size = CELL_SIZE - CELL_GAP;
+        Color color = switch (item) {
+            case L -> Color.DODGERBLUE;
+            case W -> Color.DIMGRAY;
+            case H -> Color.WHITE;
+            case O -> Color.LIGHTBLUE;
+            case M -> Color.RED;
+        };
+        if (item == Item.M) {
+            graphics.setFill(new javafx.scene.paint.RadialGradient(0, 0, x + size / 2, y + size / 2,
+                    size / 2, false, javafx.scene.paint.CycleMethod.NO_CYCLE,
+                    new javafx.scene.paint.Stop(0, Color.WHITE),
+                    new javafx.scene.paint.Stop(0.45, Color.YELLOW),
+                    new javafx.scene.paint.Stop(1, Color.RED)));
+        } else {
+            graphics.setFill(color.deriveColor(0, 1, 1, 0.85));
+        }
+        graphics.fillRect(x, y, size, size);
+        graphics.setFill(Color.BLACK);
+        graphics.setFont(javafx.scene.text.Font.font("Monospaced", javafx.scene.text.FontWeight.BOLD, 14));
+        graphics.fillText(item.name(), x + 7, y + 12);
     }
 
 }

@@ -25,6 +25,7 @@ public final class SettingsStore {
     private static final String KEY_PRESET_PREFIX = "preset.";
     private static final String COLOR_PRESET_PREFIX = "preset.";
     private static final String DIFFICULTY_KEY = "active.difficulty";
+    private static final String ITEM_BUG_MODE_KEY = "active.item.bugMode";
 
     private SettingsStore() {
     }
@@ -155,6 +156,16 @@ public final class SettingsStore {
     public static void saveDifficulty(Difficulty difficulty) {
         Properties properties = load();
         properties.setProperty(DIFFICULTY_KEY, difficulty.name());
+        save(properties);
+    }
+
+    public static boolean loadItemBugMode() {
+        return Boolean.parseBoolean(load().getProperty(ITEM_BUG_MODE_KEY, "false"));
+    }
+
+    public static void saveItemBugMode(boolean enabled) {
+        Properties properties = load();
+        properties.setProperty(ITEM_BUG_MODE_KEY, Boolean.toString(enabled));
         save(properties);
     }
 

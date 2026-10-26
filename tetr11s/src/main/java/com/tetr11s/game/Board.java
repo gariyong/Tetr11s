@@ -6,6 +6,7 @@ import java.util.List;
 import com.tetr11s.game.tetromino.Block;
 import com.tetr11s.game.tetromino.Cell;
 import com.tetr11s.game.tetromino.Tetromino;
+import com.tetr11s.game.item.Item;
 
 /**
  * 블럭이 쌓이는 격자.
@@ -25,6 +26,7 @@ public class Board{
     private final int width;
     private final int height;
     private final Tetromino[][] grid;
+    private final Item[][] items;
 
     // 기본 보드(너비 10, 보이는 20줄 + 버퍼 2줄)
     public Board(){
@@ -39,6 +41,7 @@ public class Board{
         this.width = width;
         this.height = height;
         this.grid = new Tetromino[height][width];
+        this.items = new Item[height][width];
     }
 
     public int width(){
@@ -61,6 +64,47 @@ public class Board{
         }
 
         return grid[row][col];
+    }
+
+    public Item getItem(int row, int col) {
+        if (!isInside(new Cell(row, col))) {
+            throw new IllegalArgumentException("보드 밖의 칸: (" + row + ", " + col + ")");
+        }
+        return items[row][col];
+    }
+
+    public void setItem(int row, int col, Item item) {
+        if (!isInside(new Cell(row, col))) {
+            throw new IllegalArgumentException("보드 밖의 칸: (" + row + ", " + col + ")");
+        }
+        items[row][col] = item;
+    }
+
+    public void fillCell(int row, int col, Tetromino type, Item item) {
+        if (!isInside(new Cell(row, col)) || grid[row][col] != null) {
+            return;
+        }
+        grid[row][col] = type;
+        items[row][col] = item;
+    }
+
+    public void moveItem(int fromRow, int fromCol, int toRow, int toCol) {
+        if (!isInside(new Cell(fromRow, fromCol)) || !isInside(new Cell(toRow, toCol))
+                || grid[fromRow][fromCol] == null || grid[toRow][toCol] != null) {
+            return;
+        }
+        Tetromino type = grid[fromRow][fromCol];
+        Item item = items[fromRow][fromCol];
+        clearCell(fromRow, fromCol);
+        fillCell(toRow, toCol, type, item);
+    }
+
+    public void clearCell(int row, int col) {
+        if (!isInside(new Cell(row, col))) {
+            return;
+        }
+        grid[row][col] = null;
+        items[row][col] = null;
     }
 
     // 블럭의 모든 칸이 보드 안에 있고 비어있으면 true
@@ -118,21 +162,48 @@ public class Board{
                 cleared++;
                 continue;
             }
+
             grid[write] = grid[read];
+            items[write] = items[read];
             write--;
         }
 
         // 남은 위쪽 줄은 반드시 새 배열로 (같은 줄 배열을 두 곳이 공유하지 않도록)
         for (; write >= 0; write--) {
             grid[write] = new Tetromino[width];
+            items[write] = new Item[width];
         }
         return cleared;
+    }
+
+    public void clearRows(List<Integer> rows) {
+        boolean[] removed = new boolean[height];
+        for (int row : rows) {
+            if (row >= 0 && row < height) {
+                removed[row] = true;
+            }
+        }
+        int write = height - 1;
+        for (int read = height - 1; read >= 0; read--) {
+            if (removed[read]) {
+                continue;
+            }
+            grid[write] = grid[read];
+            items[write] = items[read];
+            write--;
+        }
+        while (write >= 0) {
+            grid[write] = new Tetromino[width];
+            items[write] = new Item[width];
+            write--;
+        }
     }
 
     // 보드 비우기
     public void clear() {
         for (int r = 0; r < height; r++) {
             grid[r] = new Tetromino[width];
+            items[r] = new Item[width];
         }
     }
 

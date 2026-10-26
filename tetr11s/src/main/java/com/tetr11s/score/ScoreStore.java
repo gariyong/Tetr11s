@@ -27,23 +27,27 @@ public class ScoreStore {
 
     private final Path path;
 
-    /** 게임에서 쓰는 기본 위치: ~/.tetr11s/scores.properties (save.properties와 같은 폴더) */
+    private final boolean isItemMode;
     public ScoreStore() {
-        this(Paths.get(System.getProperty("user.home"), ".tetr11s", FILE_NAME));
+        this(false);
     }
 
-    /** 테스트에서는 임시 폴더 경로를 넘겨서 실제 기록 파일을 건드리지 않는다 */
+    public ScoreStore(boolean isItemMode) {
+        this(Paths.get(System.getProperty("user.home"), ".tetr11s", "scores.properties"), isItemMode);
+    }
+
     public ScoreStore(Path path) {
-        this.path = path;
+        this(path, false);
     }
 
-    /**
-     * 이 난이도의 기록을 읽는다
-     * 파일이 없거나 읽을 수 없으면 빈 스코어보드, 망가진 줄은 건너뛴다
-     */
+    public ScoreStore(Path path, boolean isItemMode) {
+        this.path = path;
+        this.isItemMode = isItemMode;
+    }
+
     public ScoreBoard load(Difficulty difficulty) {
         Properties properties = read();
-        String prefix = prefix(difficulty);
+        String prefix = prefix(difficulty, isItemMode); // 모드별 키 적용
 
         List<ScoreEntry> entries = new ArrayList<>();
         for (int rank = 0; rank < ScoreBoard.CAPACITY; rank++) {
@@ -55,27 +59,24 @@ public class ScoreStore {
         return new ScoreBoard(entries);
     }
 
-    /**
-     * 이 난이도의 순위표를 덮어쓴다. 다른 난이도의 기록은 그대로 둔다
-     */
     public void save(Difficulty difficulty, ScoreBoard board) {
         Properties saved = read();
         Properties properties = new Properties();
+        String prefix = prefix(difficulty, isItemMode);
 
-        // 다른 난이도의 기록만 옮겨 담는다 (이 난이도의 이전 기록과 예전 형식의 키는 여기서 버려진다)
-        for (Difficulty other : Difficulty.values()) {
-            if (other == difficulty) {
-                continue;
-            }
-            String otherPrefix = prefix(other);
-            for (String key : saved.stringPropertyNames()) {
-                if (key.startsWith(otherPrefix)) {
-                    properties.setProperty(key, saved.getProperty(key));
+        for (String key : saved.stringPropertyNames()) {
+            boolean knownScoreKey = false;
+            for (Difficulty other : Difficulty.values()) {
+                if (key.startsWith(prefix(other, false)) || key.startsWith(prefix(other, true))) {
+                    knownScoreKey = true;
+                    break;
                 }
+            }
+            if (knownScoreKey && !key.startsWith(prefix)) {
+                properties.setProperty(key, saved.getProperty(key));
             }
         }
 
-        String prefix = prefix(difficulty);
         List<ScoreEntry> entries = board.entries();
         for (int rank = 0; rank < entries.size(); rank++) {
             properties.setProperty(prefix + rank + ".name", entries.get(rank).name());
@@ -119,9 +120,10 @@ public class ScoreStore {
         }
     }
 
-    // 난이도별 키의 앞부분 (예: "normal.")
-    private static String prefix(Difficulty difficulty) {
-        return difficulty.name().toLowerCase(Locale.ROOT) + ".";
+    // 난이도와 모드 별 키의 앞부분 (예: "item_normal.")
+    private static String prefix(Difficulty difficulty, boolean isItemMode) {
+        String base = difficulty.name().toLowerCase(Locale.ROOT) + ".";
+        return isItemMode ? "item_" + base : base;
     }
 
     // 한 순위의 기록을 읽는다 (key 예: "normal.0"). 없거나 망가졌으면 null

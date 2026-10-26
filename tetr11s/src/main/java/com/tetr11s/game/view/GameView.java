@@ -79,7 +79,7 @@ public class GameView extends HBox {
     /** 게임 상태를 읽어서 화면 전체를 다시 그린다. */
     public void refresh() {
         boardView.render(game, lineClearFlash);
-        nextView.render(game.getNext());
+        nextView.render(game.getNext(), game.getNextItemType());
 
         scoreValue.setText(String.valueOf(game.getScore()));
         levelValue.setText(String.valueOf(game.getLevel()));

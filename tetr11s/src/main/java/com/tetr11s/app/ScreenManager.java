@@ -8,7 +8,10 @@ import com.tetr11s.app.controller.NameInputController;
 import com.tetr11s.app.controller.ScoreBoardController;
 import com.tetr11s.app.controller.StartMenuController;
 import com.tetr11s.game.Difficulty;
+import com.tetr11s.game.GameManager;
 import com.tetr11s.game.GameScreen;
+import com.tetr11s.game.ItemGameManager;
+import com.tetr11s.game.controller.GameController;
 import com.tetr11s.game.view.GameView;
 import com.tetr11s.score.ScoreBoard;
 import com.tetr11s.score.ScoreEntry;
@@ -43,7 +46,8 @@ public class ScreenManager {
     public static final double MENU_BASE_HEIGHT = 640;
 
     private final Stage stage;
-    private final ScoreStore scoreStore = new ScoreStore();
+    private final ScoreStore scoreStore = new ScoreStore(false);
+    private final ScoreStore itemScoreStore = new ScoreStore(true);
     private GameScreen currentScreen;
     private ChangeListener<Boolean> focusListener; 
 
@@ -128,37 +132,58 @@ public class ScreenManager {
      * 시작화면에서 '시작' 버튼을 누르면 게임을 실행하는 함수
      * 게임뷰의 씬을 게임스크린의 씬에 연결한다
      */
-    public void showGame(){
+    // 기존에 인자가 없던 showGame()은 기본적으로 일반 모드(false)로 실행되도록 연동
+    public void showGame() {
+        showGame(false);
+    }
+
+    // 아이템 모드 여부(isItemMode)를 받아오는 핵심 showGame 메서드
+    public void showGame(boolean isItemMode) {
         stopCurrentGame();
 
         Difficulty difficulty = SettingsStore.loadDifficulty();
 
-        GameScreen screen = GameScreen.create(difficulty, score -> {
+        // 1. 모드에 따라 일반 GameManager 또는 ItemGameManager를 동적으로 생성
+        GameManager game;
+        if (isItemMode) {
+            game = new ItemGameManager(difficulty, SettingsStore.loadItemBugMode());
+        } else {
+            game = new GameManager(difficulty);
+        }
+
+        KeyBindings bindings = new KeyBindings();
+
+        // 2. GameView 생성 시 선택된 game 객체를 주입
+        GameView view = new GameView(game, new DefaultPalette(), bindings);
+        GameController controller = new GameController(game, view, bindings, score -> {
             try {
-                endGame(difficulty, score);
+                endGame(difficulty, score, isItemMode);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("스코어보드 화면을 열 수 없습니다.", e);
             }
         });
 
-        // 다른 창으로 전환하면 키를 뗀 신호가 오지 않아서, 블럭이 계속 움직이는 문제를 막는다
-        // 이 판의 screen 만 가리키고, 판이 끝나면 stopCurrentGame 에서 제거된다
         focusListener = (obs, wasFocused, isFocused) -> {
             if (!isFocused) {
-                screen.releaseAllKeys();
+                controller.releaseAllKeys();
             }
         };
         stage.focusedProperty().addListener(focusListener);
-        currentScreen = screen;
 
-        stage.setTitle("Tetr11s");
-        
-        // 게임뷰를 게임스크린과 씬을 연결
+        // 기존 GameScreen 구조와 호환되도록 구성
+        Scene scene = new Scene(view);
+        scene.setOnKeyPressed(controller::onKeyPressed);
+        scene.setOnKeyReleased(controller::onKeyReleased);
+
+        GameScreen screen = new GameScreen(controller, view, scene);
+
+        currentScreen = screen;
+        stage.setTitle(isItemMode ? "Tetr11s - 아이템 모드" : "Tetr11s");
+
         Scene gameScene = mountScene(screen.view(), GameView.BASE_WIDTH, GameView.BASE_HEIGHT);
         screen.attachToScene(gameScene);
         currentScreen.start();
     }
-
     // 설정화면뷰를 씬에 연결한다
     public void showSettings() {
         stopCurrentGame();
@@ -186,7 +211,8 @@ public class ScreenManager {
      * 스코어보드 화면 (시작 메뉴의 '스코어보드'에서 들어올 때). 강조할 기록 없이 저장된 순위표를 보여준다
      */
     public void showScoreboard() throws IOException {
-        showScoreboard(loadAllBoards(), SettingsStore.loadDifficulty(), ScoreBoardController.NO_HIGHLIGHT);
+        showScoreboard(loadAllBoards(false), loadAllBoards(true),
+                SettingsStore.loadDifficulty(), ScoreBoardController.NO_HIGHLIGHT, false);
     }
 
     /**
@@ -196,14 +222,15 @@ public class ScreenManager {
      * @param difficulty 처음 보여줄 난이도
      * @param highlightRank 방금 추가된 기록의 순위 (0 = 1위). 없으면 NO_HIGHLIGHT
      */
-    private void showScoreboard(Map<Difficulty, ScoreBoard> boards, Difficulty difficulty, int highlightRank) throws IOException {
+    private void showScoreboard(Map<Difficulty, ScoreBoard> boards, Map<Difficulty, ScoreBoard> itemBoards,
+                                Difficulty difficulty, int highlightRank, boolean itemMode) throws IOException {
         stopCurrentGame();
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/score_board.fxml"));
         Parent root = loader.load();
 
         ScoreBoardController controller = loader.getController();
-        controller.show(boards, difficulty, highlightRank, () -> {
+        controller.show(boards, itemBoards, difficulty, highlightRank, itemMode, () -> {
             try {
                 showStartMenu();
             } catch (IOException e) {
@@ -318,19 +345,21 @@ public class ScreenManager {
      * 게임이 끝났을 때 (게임오버 후 Esc, 일시정지 후 Esc)
      * 순위권 점수면 이름 입력 화면, 아니면 바로 스코어보드로 간다
      */
-    private void endGame(Difficulty difficulty, int score) throws IOException {
-        ScoreBoard board = scoreStore.load(difficulty);
+    private void endGame(Difficulty difficulty, int score, boolean itemMode) throws IOException {
+        ScoreStore store = itemMode ? itemScoreStore : scoreStore;
+        ScoreBoard board = store.load(difficulty);
         if (score > 0 && board.qualifies(score)) {
-            showNameInput(difficulty, score);
+            showNameInput(difficulty, score, itemMode);
         } else {
-            showScoreboard(loadAllBoards(), difficulty, ScoreBoardController.NO_HIGHLIGHT);
+            showScoreboard(loadAllBoards(false), loadAllBoards(true),
+                    difficulty, ScoreBoardController.NO_HIGHLIGHT, itemMode);
         }
     }
 
     /**
      * 이름 입력 화면. 이름이 확정되면 기록을 저장하고 스코어보드로 간다
      */
-    private void showNameInput(Difficulty difficulty, int score) throws IOException {
+    private void showNameInput(Difficulty difficulty, int score, boolean itemMode) throws IOException {
         stopCurrentGame();
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/name_input.fxml"));
@@ -338,15 +367,17 @@ public class ScreenManager {
 
         NameInputController controller = loader.getController();
         controller.show(score, name -> {
-            ScoreBoard board = scoreStore.load(difficulty);
+            ScoreStore store = itemMode ? itemScoreStore : scoreStore;
+            ScoreBoard board = store.load(difficulty);
             int rank = board.add(new ScoreEntry(name, score));
-            save(difficulty, board);
+            save(difficulty, board, itemMode);
 
             // 다른 난이도는 파일에서, 이 난이도는 방금 기록을 넣은 순위표 그대로 (저장에 실패해도 화면에는 보이도록)
-            Map<Difficulty, ScoreBoard> boards = loadAllBoards();
-            boards.put(difficulty, board);
+            Map<Difficulty, ScoreBoard> boards = loadAllBoards(false);
+            Map<Difficulty, ScoreBoard> itemBoards = loadAllBoards(true);
+            (itemMode ? itemBoards : boards).put(difficulty, board);
             try {
-                showScoreboard(boards, difficulty, rank);
+                showScoreboard(boards, itemBoards, difficulty, rank, itemMode);
             } catch (IOException e) {
                 throw new RuntimeException("스코어보드 화면을 열 수 없습니다.", e);
             }
@@ -357,18 +388,19 @@ public class ScreenManager {
     }
 
     // 모든 난이도의 순위표를 파일에서 읽는다
-    private Map<Difficulty, ScoreBoard> loadAllBoards() {
+    private Map<Difficulty, ScoreBoard> loadAllBoards(boolean itemMode) {
         Map<Difficulty, ScoreBoard> boards = new EnumMap<>(Difficulty.class);
+        ScoreStore store = itemMode ? itemScoreStore : scoreStore;
         for (Difficulty difficulty : Difficulty.values()) {
-            boards.put(difficulty, scoreStore.load(difficulty));
+            boards.put(difficulty, store.load(difficulty));
         }
         return boards;
     }
 
     // 기록을 순위표에 넣고 파일에 저장한다. 저장에 실패해도 게임은 계속된다
-    private void save(Difficulty difficulty, ScoreBoard board) {
+    private void save(Difficulty difficulty, ScoreBoard board, boolean itemMode) {
         try {
-            scoreStore.save(difficulty, board);
+            (itemMode ? itemScoreStore : scoreStore).save(difficulty, board);
         } catch (IllegalStateException e) {
             System.err.println("기록을 저장하지 못했습니다: " + e.getMessage());
         }
