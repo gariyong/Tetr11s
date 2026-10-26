@@ -21,13 +21,12 @@ import javafx.scene.text.FontWeight;
  */
 public class GameView extends HBox {
 
-    // 게임 화면 기본크기 - 일단은 이 비율을 사용하기 위한 상수
+    // 게임 화면의 고정 기준 해상도
     public static final double BASE_WIDTH = 540;
     public static final double BASE_HEIGHT = 644;
 
     private static final Font INFO_FONT = Font.font("Monospaced", FontWeight.BOLD, 18);
     private static final Font HELP_FONT = Font.font("Monospaced", 13);
-
     private static final Color PAUSED_COLOR = Color.rgb(240, 200, 80);
     private static final Color GAME_OVER_COLOR = Color.rgb(240, 80, 80);
 
@@ -66,6 +65,7 @@ public class GameView extends HBox {
         setStyle("-fx-background-color: #1e1e1e;");
         getChildren().addAll(boardView, side);
 
+        // 내부 레이아웃 고정
         setPrefSize(BASE_WIDTH, BASE_HEIGHT);
         setMinSize(BASE_WIDTH, BASE_HEIGHT);
         setMaxSize(BASE_WIDTH, BASE_HEIGHT);

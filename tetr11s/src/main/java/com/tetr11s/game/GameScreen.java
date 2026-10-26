@@ -14,12 +14,15 @@ import javafx.scene.Scene;
  */
 public class GameScreen {
 
+    // 겜뷰를 게임스크린에서 받음 
     private final GameController controller;
-    private final Scene scene;
+    private final GameView view;
+    private Scene scene;
 
-    public GameScreen(GameController controller, Scene scene){
-        this.controller=controller;
-        this.scene=scene;
+    public GameScreen(GameController controller, GameView view, Scene scene) {
+        this.controller = controller;
+        this.view = view;
+        this.scene = scene;
     }
 
     /**
@@ -37,9 +40,20 @@ public class GameScreen {
         scene.setOnKeyPressed(controller::onKeyPressed);
         scene.setOnKeyReleased(controller::onKeyReleased);
 
-        return new GameScreen(controller, scene);
+        return new GameScreen(controller, view, scene);
     }
 
+    // GameScreen의 현재 씬에 타겟 씬을 연결해줌
+    public void attachToScene(Scene targetScene) {
+        this.scene = targetScene;
+        targetScene.setOnKeyPressed(controller::onKeyPressed);
+        targetScene.setOnKeyReleased(controller::onKeyReleased);
+    }
+
+    // 게임뷰를 반환
+    public GameView view() {
+        return view;
+    }
     /**
      * scene, start, releaseAllKeys, stop 과 같은 메서드들은 ScreenManager 에서 직접 참조 못함
      * 따라서 GameScreen 에서 불러올 수 있게 한다

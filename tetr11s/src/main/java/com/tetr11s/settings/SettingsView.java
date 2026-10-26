@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.function.Consumer;
 
+import com.tetr11s.app.ScreenManager;
 import com.tetr11s.game.Difficulty;
 import com.tetr11s.game.controller.GameAction;
 import com.tetr11s.game.tetromino.Cell;
@@ -42,7 +43,8 @@ public class SettingsView extends BorderPane {
     public static final double BASE_HEIGHT = 640;
 
     private static final double SAMPLE_CELL_SIZE = 17;
-    private static final String[] TAB_NAMES = {"디스플레이", "게임", "기타"};
+    private static final double SAMPLE_GAP = 3;
+    private static final String[] TAB_NAMES = {"화면", "게임", "기타"};
     private static final javafx.css.PseudoClass SELECTED =
             javafx.css.PseudoClass.getPseudoClass("selected");
 
@@ -56,7 +58,7 @@ public class SettingsView extends BorderPane {
     private final Map<GameAction, String> actionLabels = Map.of(
             GameAction.MOVE_LEFT, "←",
             GameAction.MOVE_RIGHT, "→",
-            GameAction.SOFT_DROP, "아래방향키",
+            GameAction.SOFT_DROP, "↓",
             GameAction.HARD_DROP, "하드드롭",
             GameAction.ROTATE_CW, "회전",
             GameAction.PAUSE, "pause",
@@ -112,10 +114,10 @@ public class SettingsView extends BorderPane {
         Label guideLabel = new Label("블럭을 누르고 좌우 드래그: 색조, 상하 드래그: 명도, 스크롤: 채도");
         guideLabel.getStyleClass().add("preview-guide-label");
 
-        VBox topBox = new VBox(4, samples, guideLabel);
-        topBox.setAlignment(Pos.CENTER);
-        BorderPane.setAlignment(topBox, Pos.CENTER);
-        return topBox;
+        VBox previewBox = new VBox(4, samples, guideLabel);
+        previewBox.setAlignment(Pos.CENTER);
+        BorderPane.setAlignment(previewBox, Pos.CENTER);
+        return previewBox;
     }
     
     // borderpane center: 탭과 스크롤 영역
@@ -183,36 +185,28 @@ public class SettingsView extends BorderPane {
                 loadColorPreset(colors.getValue());
             }
         });
-        section.getChildren().add(settingRow("컬러 프리셋", colors,
-                new HBox(6, load, overwrite)));
 
         ComboBox<String> scales = new ComboBox<>();
-        scales.setEditable(true);
-        scales.getItems().addAll("작게 · 0.75", "기본 · 1.0", "크게 · 1.25");
+        scales.setEditable(false);
+        scales.getItems().addAll(
+                scaleLabel(0.75),
+                scaleLabel(1.0),
+                scaleLabel(1.25)
+        );
         scales.getItems().addAll(resolutionPresetNames());
         scales.setValue(scaleLabel(SettingsStore.loadScale()));
-        scales.setOnShown(event -> {
-            if (!scales.getItems().contains("추가")) {
-                scales.getItems().add("추가");
-            }
-        });
+
+        // 콤보박스에서 프리셋을 고르면 바로 적용되게 연결
         scales.setOnAction(event -> {
-            if ("추가".equals(scales.getValue())) {
-                scales.getItems().remove("추가");
-                scales.setValue("새 해상도");
-                scales.getEditor().selectAll();
+            if (scales.getValue() != null) {
+                loadScale(scales.getValue());
             }
         });
-        Button scaleLoad = accentButton("불러오기");
-        Button scaleOverwrite = accentButton("덮어쓰기");
+
+        Button scaleLoad = accentButton("적용");
         scaleLoad.setOnAction(event -> loadScale(scales.getValue()));
-        scaleOverwrite.setOnAction(event -> {
-            if (saveScale(scales.getValue())) {
-                addPresetItem(scales, scales.getValue());
-            }
-        });
         section.getChildren().add(settingRow("화면 해상도", scales,
-                new HBox(6, scaleLoad, scaleOverwrite)));
+                new HBox(6, scaleLoad)));
         return section;
     }
 
@@ -323,8 +317,7 @@ public class SettingsView extends BorderPane {
         return label;
     }
 
-
-    private HBox checkRow(String text, boolean selected, Consumer<Boolean> action) {
+private HBox checkRow(String text, boolean selected, Consumer<Boolean> action) {
         CheckBox check = checkBox(text);
         check.setSelected(selected);
         check.setOnAction(event -> action.accept(check.isSelected()));
@@ -396,7 +389,8 @@ public class SettingsView extends BorderPane {
         return combo;
     }
 
-    // 컬러 프리셋 저장과 불러오기
+
+
     private boolean saveColorPreset(String selected) {
         try {
             palette.savePreset(presetValue(selected));
@@ -435,6 +429,16 @@ public class SettingsView extends BorderPane {
         }
     }
 
+    private void addPresetItem(ComboBox<String> combo, String value) {
+        String name = value == null ? "" : value.trim();
+        if (!name.isBlank() && !"추가".equals(name) && !combo.getItems().contains(name)) {
+            combo.getItems().add(name);
+        }
+        if (!name.isBlank()) {
+            combo.setValue(name);
+        }
+    }
+
     private void loadKeyPreset(String selected) {
         try {
             bindings.loadPreset(presetValue(selected));
@@ -443,49 +447,22 @@ public class SettingsView extends BorderPane {
             showMessage("키 프리셋 불러오기 실패", e.getMessage());
         }
     }
-
-    // 화면 해상도 저장과 불러오기
-    private void loadScale(String selected) {
+private void loadScale(String selected) {
         try {
             double scale = isBuiltInScale(selected)
                     ? parseScale(selected)
                     : SettingsStore.loadResolutionPreset(presetValue(selected));
             SettingsStore.saveScale(scale);
-            onScaleChanged.accept(scale);
-        } catch (IllegalArgumentException e) {
-            showMessage("화면 해상도", e.getMessage());
-        }
-    }
-
-    private boolean saveScale(String selected) {
-        try {
-            String name = presetValue(selected);
-            double scale = isBuiltInScale(name)
-                    ? parseScale(name)
-                    : SettingsStore.loadScale();
-            if (!isBuiltInScale(name)) {
-                SettingsStore.saveResolutionPreset(name, scale);
+            
+            // 크기만 대충 바꾸는 것이 아니라, 화면을 완전히 새로 고침(재생성)하여 반영
+            if (onScaleChanged != null) {
+                onScaleChanged.accept(scale);
             }
-            SettingsStore.saveScale(scale);
-            onScaleChanged.accept(scale);
-            showMessage("화면 해상도", "해상도 설정(" + scale + "배)을 저장하고 적용했습니다.");
-            return true;
         } catch (IllegalArgumentException e) {
             showMessage("화면 해상도", e.getMessage());
-            return false;
         }
     }
-
-    private void addPresetItem(ComboBox<String> combo, String selected) {
-        String name = presetValue(selected);
-        combo.getItems().remove("추가");
-        if (!combo.getItems().contains(name)) {
-            combo.getItems().add(name);
-        }
-        combo.setValue(name);
-    }
-
-    // 프리셋 이름 넣을 때 검증
+    
     private String presetValue(String value) {
         String name = value == null ? "" : value.trim();
         if (name.isBlank() || "추가".equals(name)) {
@@ -494,7 +471,6 @@ public class SettingsView extends BorderPane {
         return name;
     }
 
-    // 컬러 프리셋 이름을 로드
     private List<String> colorPresetNames() {
         List<String> names = new ArrayList<>(List.of("적록", "적색", "녹색", "녹황"));
         Properties properties = SettingsStore.load();
@@ -509,7 +485,6 @@ public class SettingsView extends BorderPane {
         return names;
     }
 
-    // 키 프리셋 이름을 로드
     private List<String> keyPresetNames() {
         List<String> names = new ArrayList<>();
         Properties properties = SettingsStore.load();
@@ -524,7 +499,6 @@ public class SettingsView extends BorderPane {
         return names;
     }
 
-    // 컬러 프리셋 잉름을 ColorblindPreset enum으로 변환
     private ColorblindPreset colorblindPreset(String name) {
         return switch (name) {
             case "적록" -> ColorblindPreset.RED_GREEN;
@@ -535,7 +509,6 @@ public class SettingsView extends BorderPane {
         };
     }
 
-    // 화면 해상도 배율을 문자열에서 double로 변환
     private double parseScale(String value) {
         if (value == null) {
             throw new IllegalArgumentException("화면 해상도를 선택하세요.");
@@ -543,18 +516,18 @@ public class SettingsView extends BorderPane {
         if (value.contains("0.75")) {
             return 0.75;
         }
-        if (value.contains("1.0")) {
-            return 1.0;
-        }
         if (value.contains("1.25")) {
             return 1.25;
+        }
+        if (value.contains("1.0") || value.contains("기본")) {
+            return 1.0;
         }
         throw new IllegalArgumentException("지원하지 않는 화면 해상도입니다.");
     }
 
     private boolean isBuiltInScale(String value) {
         return value != null && (value.contains("0.75") || value.contains("1.0")
-                || value.contains("1.25"));
+                || value.contains("1.25") || value.contains("작게") || value.contains("기본") || value.contains("크게"));
     }
 
     private List<String> resolutionPresetNames() {
@@ -568,7 +541,13 @@ public class SettingsView extends BorderPane {
     }
 
     private String scaleLabel(double scale) {
-        return scale == 0.75 ? "작게 · 0.75" : scale == 1.25 ? "크게 · 1.25" : "기본 · 1.0";
+        String res = ScreenManager.getResolutionText(scale);
+        if (scale == 0.75) {
+            return "작게 (" + res + ") · 0.75";
+        } else if (scale == 1.25) {
+            return "크게 (" + res + ") · 1.25";
+        }
+        return "기본 (" + res + ") · 1.0";
     }
 
     private HBox createFooter(Runnable onBack) {
