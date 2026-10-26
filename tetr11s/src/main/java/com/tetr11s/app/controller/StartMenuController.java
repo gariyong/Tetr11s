@@ -118,6 +118,7 @@ public class StartMenuController {
         double current = SettingsStore.loadScale();
         double next = current == 0.75 ? 1.0 : current == 1.0 ? 1.25 : 0.75;
         SettingsStore.saveScale(next);
+        screenManager.applyScale(next);
         messageLabel.setText("게임 크기: " + next + "배");
     }
 

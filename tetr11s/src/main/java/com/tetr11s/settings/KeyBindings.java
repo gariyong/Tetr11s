@@ -108,6 +108,16 @@ public class KeyBindings {
         saveActive();
     }
 
+    /** 사용자가 만든 키 프리셋을 모두 삭제한다. */
+    public void deletePresets() {
+        Properties properties = SettingsStore.load();
+        properties.keySet().removeIf(key -> {
+            String name = key.toString();
+            return name.startsWith("preset.") && name.contains(".key.");
+        });
+        SettingsStore.save(properties);
+    }
+
     private static String normalizePresetName(String name) {
         return name == null ? "" : name.trim().replaceAll("[^\\p{L}\\p{N}_-]", "_");
     }
