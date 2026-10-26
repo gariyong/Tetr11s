@@ -9,6 +9,7 @@ import com.tetr11s.app.controller.ScoreBoardController;
 import com.tetr11s.app.controller.StartMenuController;
 import com.tetr11s.game.Difficulty;
 import com.tetr11s.game.GameScreen;
+import com.tetr11s.game.view.GameView;
 import com.tetr11s.score.ScoreBoard;
 import com.tetr11s.score.ScoreEntry;
 import com.tetr11s.score.ScoreStore;
@@ -22,6 +23,8 @@ import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.layout.Region;
+import javafx.scene.transform.Scale;
 import javafx.stage.Stage;
 
 /**
@@ -31,15 +34,24 @@ import javafx.stage.Stage;
  */
 
 public class ScreenManager {
+    public static final double MENU_BASE_WIDTH = 480;
+    public static final double MENU_BASE_HEIGHT = 640;
+
     private final Stage stage;
     private final ScoreStore scoreStore = new ScoreStore();
     private GameScreen currentScreen;
     private ChangeListener<Boolean> focusListener; 
 
+    // 현재 화면의 기준 해상도 저장
+    private double currentBaseWidth = MENU_BASE_WIDTH;
+    private double currentBaseHeight = MENU_BASE_HEIGHT;
+
     public ScreenManager(Stage stage){
         this.stage=stage;
+        stage.setResizable(false);
     }
 
+    
     /**
      * 이전 currentScreen 이 남아, 계속 게임이 돌아가는 경우를 막기 위해 null 로 초기화
      * listener 가 게임이 끝나도 남아있어, 이를 없애는 기능 추가
@@ -50,6 +62,7 @@ public class ScreenManager {
             currentScreen.stop();
             currentScreen=null;
             focusListener=null; 
+            
         }
     }
 
@@ -64,9 +77,7 @@ public class ScreenManager {
         StartMenuController controller = loader.getController();
         controller.setScreenManager(this); 
         stage.setTitle("Tetr11s");
-        stage.setScene(new Scene(root));
-
-        stage.show();
+        showScene(root, MENU_BASE_WIDTH, MENU_BASE_HEIGHT);
     }
 
     /**
@@ -97,10 +108,8 @@ public class ScreenManager {
 
         stage.setTitle("Tetr11s");
         stage.setScene(currentScreen.scene());
-        stage.setResizable(false);
-        stage.show();
-
-        currentScreen.start();
+        showExistingScene(screen.scene(), GameView.BASE_WIDTH, GameView.BASE_HEIGHT);
+        currentScreen.start();;
     }
 
     public void showSettings() {
@@ -112,11 +121,13 @@ public class ScreenManager {
             } catch (IOException e) {
                 throw new RuntimeException("시작 메뉴를 열 수 없습니다.", e);
             }
-                });
+                }, this::applyScale);
         stage.setTitle("Tetr11s - 설정");
         stage.setScene(new Scene(view));
         stage.setResizable(false);
         stage.show();
+        applyScale(SettingsStore.loadScale());
+        showScene(view, SettingsView.BASE_WIDTH, SettingsView.BASE_HEIGHT);
     }
 
     /**
@@ -138,6 +149,7 @@ public class ScreenManager {
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/score_board.fxml"));
         Parent root = loader.load();
+
         ScoreBoardController controller = loader.getController();
         controller.show(boards, difficulty, highlightRank, () -> {
             try {
@@ -148,10 +160,65 @@ public class ScreenManager {
         }, Platform::exit);
 
         stage.setTitle("Tetr11s - 스코어보드");
-        stage.setScene(new Scene(root));
+        showScene(root, MENU_BASE_WIDTH, MENU_BASE_HEIGHT);
+    }
+
+    // 해상도를 바꾸면 씬을 새것으로 만들음
+    private void showScene(Parent root, double baseWidth, double baseHeight) {
+        double scale = SettingsStore.loadScale();
+        prepareRootSize(root, baseWidth, baseHeight);
+        Scene scene = new Scene(root, baseWidth * scale, baseHeight * scale);
+        showExistingScene(scene, baseWidth, baseHeight);
+    }
+
+    // 씬 보여주는 메서드
+    private void showExistingScene(Scene scene, double baseWidth, double baseHeight) {
+        this.currentBaseWidth = baseWidth;
+        this.currentBaseHeight = baseHeight;
+        prepareRootSize(scene.getRoot(), baseWidth, baseHeight);
+
+        stage.setScene(scene);
+        applyScale(SettingsStore.loadScale());
         stage.show();
     }
 
+    // 루트의 기본 크기를 설정. 루트가 Region이면 pref/min/max size 를 모두 설정한다
+    private void prepareRootSize(Parent root, double baseWidth, double baseHeight) {
+        if (root instanceof Region region) {
+            region.setPrefSize(baseWidth, baseHeight);
+            region.setMinSize(baseWidth, baseHeight);
+            region.setMaxSize(baseWidth, baseHeight);
+        }
+    }
+    /**
+     * 화면 크기를 조절한다.
+     * @param scale 조절할 크기
+     */
+    public void applyScale(double scale) {
+        Scene scene = stage.getScene();
+        if (scene == null) {
+            return;
+        }
+        Parent root = scene.getRoot();
+
+        // 중앙 기준인 setScaleX/Y 대신 좌상단(0, 0)을 기준점(Pivot)으로 삼는 Scale 변환 적용
+        root.setScaleX(1.0);
+        root.setScaleY(1.0);
+        root.getTransforms().setAll(new Scale(scale, scale, 0, 0));
+
+        double targetWidth = currentBaseWidth * scale;
+        double targetHeight = currentBaseHeight * scale;
+
+        // 스테이지의 프레임 부분을 계산에 넣음
+        if (stage.isShowing() && scene.getWidth() > 0 && scene.getHeight() > 0) {
+            double decoWidth = stage.getWidth() - scene.getWidth();
+            double decoHeight = stage.getHeight() - scene.getHeight();
+            stage.setWidth(targetWidth + decoWidth);
+            stage.setHeight(targetHeight + decoHeight);
+        } else {
+            stage.sizeToScene();
+        }
+    }
     /**
      * 게임이 끝났을 때 (게임오버 후 Esc, 일시정지 후 Esc)
      * 순위권 점수면 이름 입력 화면, 아니면 바로 스코어보드로 간다
@@ -173,6 +240,7 @@ public class ScreenManager {
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/name_input.fxml"));
         Parent root = loader.load();
+
         NameInputController controller = loader.getController();
         controller.show(score, name -> {
             ScoreBoard board = scoreStore.load(difficulty);
@@ -190,8 +258,7 @@ public class ScreenManager {
         });
 
         stage.setTitle("Tetr11s - 기록");
-        stage.setScene(new Scene(root));
-        stage.show();
+        showScene(root, MENU_BASE_WIDTH, MENU_BASE_HEIGHT);
     }
 
     // 모든 난이도의 순위표를 파일에서 읽는다

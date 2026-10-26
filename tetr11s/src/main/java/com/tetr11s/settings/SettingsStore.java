@@ -128,6 +128,25 @@ public final class SettingsStore {
         save(properties);
     }
 
+    public static void saveResolutionPreset(String name, double scale) {
+        Properties properties = load();
+        properties.setProperty("preset.resolution." + name, Double.toString(scale));
+        save(properties);
+    }
+
+    public static double loadResolutionPreset(String name) {
+        String value = load().getProperty("preset.resolution." + name);
+        if (value == null) {
+            throw new IllegalArgumentException("저장된 화면 해상도 프리셋이 없습니다: " + name);
+        }
+        try {
+            double scale = Double.parseDouble(value);
+            return isSupportedScale(scale) ? scale : 1.0;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("화면 해상도 프리셋이 손상되었습니다: " + name, e);
+        }
+    }
+
     // 저장된 난이도. 저장한 적이 없거나 알 수 없는 값이면 Difficulty.DEFAULT (Normal)
     public static Difficulty loadDifficulty() {
         return Difficulty.fromSaved(load().getProperty(DIFFICULTY_KEY));

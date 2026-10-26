@@ -21,6 +21,10 @@ import javafx.scene.text.FontWeight;
  */
 public class GameView extends HBox {
 
+    // 게임 화면 기본크기 - 일단은 이 비율을 사용하기 위한 상수
+    public static final double BASE_WIDTH = 540;
+    public static final double BASE_HEIGHT = 644;
+
     private static final Font INFO_FONT = Font.font("Monospaced", FontWeight.BOLD, 18);
     private static final Font HELP_FONT = Font.font("Monospaced", 13);
 
@@ -61,7 +65,10 @@ public class GameView extends HBox {
         setPadding(new Insets(20));
         setStyle("-fx-background-color: #1e1e1e;");
         getChildren().addAll(boardView, side);
-        // TODO: 드래그 기반 크기 조절을 추가할 때는 비율 유지와 반응형 레이아웃을 함께 처리한다.
+
+        setPrefSize(BASE_WIDTH, BASE_HEIGHT);
+        setMinSize(BASE_WIDTH, BASE_HEIGHT);
+        setMaxSize(BASE_WIDTH, BASE_HEIGHT);
     }
 
     /** 줄 삭제 연출에서 지금 흰색으로 그릴 차례인지 알려 준다. 다음 refresh()부터 반영된다. */

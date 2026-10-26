@@ -60,4 +60,20 @@ class SettingsStoreDifficultyTest {
 
         assertEquals(Difficulty.NORMAL, SettingsStore.loadDifficulty());
     }
+
+    @Test
+    void 화면_배율_프리셋을_저장하고_읽는다() {
+        SettingsStore.saveResolutionPreset("노트북", 1.25);
+
+        assertEquals(1.25, SettingsStore.loadResolutionPreset("노트북"));
+    }
+
+    @Test
+    void 화면_배율_프리셋은_활성_배율과_분리되어_저장된다() {
+        SettingsStore.saveScale(0.75);
+        SettingsStore.saveResolutionPreset("기본", 1.0);
+
+        assertEquals(0.75, SettingsStore.loadScale());
+        assertEquals(1.0, SettingsStore.loadResolutionPreset("기본"));
+    }
 }
