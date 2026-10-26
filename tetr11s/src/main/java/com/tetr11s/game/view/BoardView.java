@@ -23,6 +23,8 @@ public class BoardView extends Canvas {
 
     private static final String EMPTY = "·";
     private static final String GHOST = "□";
+    private static final String FLASH = "■";
+    private static final Color FLASH_COLOR = Color.WHITE;
     private static final Color BACKGROUND_COLOR = Color.rgb(17, 17, 17);
     private static final Color BORDER_COLOR = Color.rgb(136, 136, 136);
     private static final Color GRID_COLOR = Color.rgb(45, 45, 45);
@@ -46,8 +48,11 @@ public class BoardView extends Canvas {
         setOnMousePressed(event -> requestFocus());
     }
 
-    /** 게임 상태를 읽어서 화면 전체를 다시 그린다. */
-    public void render(GameManager game) {
+    /** 
+     * 게임 상태를 읽어서 화면 전체를 다시 그린다. 
+     * @param flashOn 줄 삭제 중일 때, 지울 줄을 흰색으로 그릴 차례인가
+    */
+    public void render(GameManager game, boolean flashOn) {
         Board board = game.getBoard();
         clear();
 
@@ -59,6 +64,19 @@ public class BoardView extends Canvas {
                     set(r, c, EMPTY, BACKGROUND_COLOR, null);
                 } else {
                     set(r, c, palette.getSymbol(type), palette.getColor(type), type);
+                }
+            }
+        }
+
+        // 1-1. 줄 삭제 반짝임: 지울 줄을 흰색으로 덮는다 (흰색 차례일 때만)
+        if (flashOn) {
+            for (int row : game.getClearingRows()) {
+                int r = row - Board.BUFFER_ROWS;
+                if (r < 0) {
+                    continue;   // 버퍼 줄은 화면에 없음
+                }
+                for (int c = 0; c < cols; c++) {
+                    set(r, c, FLASH, FLASH_COLOR, null);
                 }
             }
         }

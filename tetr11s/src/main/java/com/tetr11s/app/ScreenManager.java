@@ -1,16 +1,20 @@
 package com.tetr11s.app;
 
 import java.io.IOException;
+import java.util.EnumMap;
+import java.util.Map;
 
 import com.tetr11s.app.controller.NameInputController;
 import com.tetr11s.app.controller.ScoreBoardController;
 import com.tetr11s.app.controller.StartMenuController;
+import com.tetr11s.game.Difficulty;
 import com.tetr11s.game.GameScreen;
 import com.tetr11s.score.ScoreBoard;
 import com.tetr11s.score.ScoreEntry;
 import com.tetr11s.score.ScoreStore;
 import com.tetr11s.settings.DefaultPalette;
 import com.tetr11s.settings.KeyBindings;
+import com.tetr11s.settings.SettingsStore;
 import com.tetr11s.settings.SettingsView;
 
 import javafx.application.Platform;
@@ -71,9 +75,11 @@ public class ScreenManager {
     public void showGame(){
         stopCurrentGame();
 
-        GameScreen screen = GameScreen.create(score -> {
+        Difficulty difficulty = SettingsStore.loadDifficulty();
+
+        GameScreen screen = GameScreen.create(difficulty, score -> {
             try {
-                endGame(score);
+                endGame(difficulty, score);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -117,21 +123,23 @@ public class ScreenManager {
      * 스코어보드 화면 (시작 메뉴의 '스코어보드'에서 들어올 때). 강조할 기록 없이 저장된 순위표를 보여준다
      */
     public void showScoreboard() throws IOException {
-        showScoreboard(scoreStore.load(), ScoreBoardController.NO_HIGHLIGHT);
+        showScoreboard(loadAllBoards(), SettingsStore.loadDifficulty(), ScoreBoardController.NO_HIGHLIGHT);
     }
 
     /**
      * 스코어보드 화면. 아래쪽에서 '시작 메뉴로' 또는 '게임 종료'를 고른다
      *
+     * @param boards 난이도별 순위표
+     * @param difficulty 처음 보여줄 난이도
      * @param highlightRank 방금 추가된 기록의 순위 (0 = 1위). 없으면 NO_HIGHLIGHT
      */
-    private void showScoreboard(ScoreBoard board, int highlightRank) throws IOException {
+    private void showScoreboard(Map<Difficulty, ScoreBoard> boards, Difficulty difficulty, int highlightRank) throws IOException {
         stopCurrentGame();
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/score_board.fxml"));
         Parent root = loader.load();
         ScoreBoardController controller = loader.getController();
-        controller.show(board, highlightRank, () -> {
+        controller.show(boards, difficulty, highlightRank, () -> {
             try {
                 showStartMenu();
             } catch (IOException e) {
@@ -148,29 +156,34 @@ public class ScreenManager {
      * 게임이 끝났을 때 (게임오버 후 Esc, 일시정지 후 Esc)
      * 순위권 점수면 이름 입력 화면, 아니면 바로 스코어보드로 간다
      */
-    private void endGame(int score) throws IOException {
-        if (score > 0 && scoreStore.load().qualifies(score)) {
-            showNameInput(score);
+    private void endGame(Difficulty difficulty, int score) throws IOException {
+        ScoreBoard board = scoreStore.load(difficulty);
+        if (score > 0 && board.qualifies(score)) {
+            showNameInput(difficulty, score);
         } else {
-            showScoreboard();
+            showScoreboard(loadAllBoards(), difficulty, ScoreBoardController.NO_HIGHLIGHT);
         }
     }
 
     /**
      * 이름 입력 화면. 이름이 확정되면 기록을 저장하고 스코어보드로 간다
      */
-    private void showNameInput(int score) throws IOException {
+    private void showNameInput(Difficulty difficulty, int score) throws IOException {
         stopCurrentGame();
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/name_input.fxml"));
         Parent root = loader.load();
         NameInputController controller = loader.getController();
         controller.show(score, name -> {
-            ScoreBoard board = scoreStore.load();
+            ScoreBoard board = scoreStore.load(difficulty);
             int rank = board.add(new ScoreEntry(name, score));
-            save(board);
+            save(difficulty, board);
+
+            // 다른 난이도는 파일에서, 이 난이도는 방금 기록을 넣은 순위표 그대로 (저장에 실패해도 화면에는 보이도록)
+            Map<Difficulty, ScoreBoard> boards = loadAllBoards();
+            boards.put(difficulty, board);
             try {
-                showScoreboard(board, rank);
+                showScoreboard(boards, difficulty, rank);
             } catch (IOException e) {
                 throw new RuntimeException("스코어보드 화면을 열 수 없습니다.", e);
             }
@@ -181,10 +194,19 @@ public class ScreenManager {
         stage.show();
     }
 
+    // 모든 난이도의 순위표를 파일에서 읽는다
+    private Map<Difficulty, ScoreBoard> loadAllBoards() {
+        Map<Difficulty, ScoreBoard> boards = new EnumMap<>(Difficulty.class);
+        for (Difficulty difficulty : Difficulty.values()) {
+            boards.put(difficulty, scoreStore.load(difficulty));
+        }
+        return boards;
+    }
+
     // 기록을 순위표에 넣고 파일에 저장한다. 저장에 실패해도 게임은 계속된다
-    private void save(ScoreBoard board) {
+    private void save(Difficulty difficulty, ScoreBoard board) {
         try {
-            scoreStore.save(board);
+            scoreStore.save(difficulty, board);
         } catch (IllegalStateException e) {
             System.err.println("기록을 저장하지 못했습니다: " + e.getMessage());
         }

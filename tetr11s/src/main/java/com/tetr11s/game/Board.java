@@ -1,5 +1,8 @@
 package com.tetr11s.game;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.tetr11s.game.tetromino.Block;
 import com.tetr11s.game.tetromino.Cell;
 import com.tetr11s.game.tetromino.Tetromino;
@@ -80,6 +83,22 @@ public class Board{
         for(Cell c : block.cells()){
             grid[c.row()][c.col()] = block.type();
         }
+    }
+
+    /**
+     * 꽉 찬 줄의 행 번호를 위에서 아래 순서로 돌려준다. 보드는 바꾸지 않는다.
+     * (줄 삭제 연출 동안 어느 줄을 반짝일지 알려 주는 용도)
+     *
+     * @return 꽉 찬 줄이 없으면 빈 리스트
+     */
+    public List<Integer> fullRows() {
+        List<Integer> rows = new ArrayList<>();
+        for (int row = 0; row < height; row++) {
+            if (isRowFull(row)) {
+                rows.add(row);
+            }
+        }
+        return List.copyOf(rows);
     }
 
     /**

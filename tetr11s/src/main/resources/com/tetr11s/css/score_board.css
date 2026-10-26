@@ -11,7 +11,6 @@
     -fx-font-size: 40px;
     -fx-font-weight: bold;
     -fx-text-fill: white;
-    -fx-padding: 0 0 8 0;
 }
 
 .header-row,
@@ -95,4 +94,14 @@
     -fx-background-color: #f0f000;
     -fx-text-fill: #12121c;
     -fx-font-weight: bold;
+}
+
+/**
+* 지금 보고 있는 난이도 (◀ Normal ▶)
+*/
+.difficulty-label {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f0f000;
+    -fx-padding: 0 0 8 0;
 }

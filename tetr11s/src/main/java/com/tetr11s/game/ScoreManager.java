@@ -22,11 +22,19 @@ public class ScoreManager {
     /** 한 번에 지운 줄 수(0~4)별 기본 보너스 */
     private static final int[] LINE_CLEAR_SCORES = {0, 100, 300, 500, 800};
 
+    private final Difficulty difficulty;
+
     private int score;
     private int level;
     private int lines;
 
     public ScoreManager() {
+        this(Difficulty.DEFAULT);
+    }
+
+    /** @param difficulty 레벨이 오를 때 빨라지는 정도를 정한다 */
+    public ScoreManager(Difficulty difficulty){
+        this.difficulty = difficulty;
         reset();
     }
 
@@ -77,7 +85,11 @@ public class ScoreManager {
 
     // 현재 레벨의 자동 낙하 간격(ms)
     public long dropIntervalMillis() {
-        return dropIntervalMillis(level);
+        return dropIntervalMillis(level, difficulty);
+    }
+
+    public Difficulty difficulty(){
+        return difficulty;
     }
 
     /**
@@ -90,5 +102,20 @@ public class ScoreManager {
         double seconds = Math.pow(0.8 - (lv - 1) * 0.007, lv - 1);
         
         return Math.max(1, Math.round(seconds * 1000));
+    }
+
+    /**
+     * 난이도를 반영한 낙하 간격(ms)
+     *
+     * 간격을 속도(1초에 떨어지는 칸 수)로 바꾼 뒤, 레벨 1보다 늘어난 속도에만 난이도 배율을 곱한다
+     * 그래서 레벨 1은 모든 난이도가 1000ms이고, Normal은 위의 기본 공식과 같다
+     * 레벨 5 = Easy 408ms / Normal 355ms / Hard 314ms, 레벨 10 = 79 / 64 / 54ms
+     */
+    public static long dropIntervalMillis(int level, Difficulty difficulty) {
+        double startSpeed = 1000.0 / dropIntervalMillis(1);
+        double normalSpeed = 1000.0 / dropIntervalMillis(level);
+        double speed = startSpeed + (normalSpeed - startSpeed) * difficulty.speedUpRate();
+
+        return Math.max(1, Math.round(1000.0 / speed));
     }
 }

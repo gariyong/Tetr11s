@@ -1,12 +1,13 @@
 package com.tetr11s.game;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 import com.tetr11s.game.tetromino.Block;
 import com.tetr11s.game.tetromino.Cell;
+import com.tetr11s.game.tetromino.RouletteWheelGenerator;
 import com.tetr11s.game.tetromino.Tetromino;
 import com.tetr11s.game.tetromino.WallKick;
-import com.tetr11s.game.tetromino.RouletteWheelGenerator;
 
 /**
  * 테트리스 한 판의 규칙을 담당
@@ -16,25 +17,44 @@ public class GameManager {
 
     private final Board board;
     private final Supplier<Tetromino> nextType;
-    private final ScoreManager score = new ScoreManager();
+    private final Difficulty difficulty;
+    private final ScoreManager score;
 
     private Block current;
     private Tetromino next;
     private boolean gameOver;
     private boolean paused;
+    // 지금 지우는 중인 줄 (비어 있으면 줄 삭제 중이 아님)
+    private List<Integer> clearingRows = List.of();
 
-    // 기본 게임: 10x22 보드(버퍼 행 2개 포함), 7-bag 생성
+    // 기본 게임: Normal 난이도
     public GameManager() {
-        this(new Board(), new RouletteWheelGenerator());
+        this(Difficulty.DEFAULT);
+    }
+
+    /**
+     * 난이도에 맞춘 게임: 10x22 보드(버퍼 행 2개 포함), 룰렛 휠 블럭 생성
+     * 난이도가 정하는 것: I 블럭 가중치(블럭 생성), 레벨이 오를 때 빨라지는 정도(ScoreManager)
+     */
+    public GameManager(Difficulty difficulty) {
+        this(new Board(),
+                new RouletteWheelGenerator(RouletteWheelGenerator.weightsWithI(difficulty.iBlockWeight())),
+                difficulty);
     }
 
     /**
      * @param board    블럭이 쌓일 보드
-     * @param nextType 다음 블럭 종류를 하나씩 꺼내 주는 함수 (게임에서는 SevenBagGenerator, 테스트에서는 정해진 순서)
+     * @param nextType 다음 블럭 종류를 하나씩 꺼내 주는 함수 (게임에서는 RouletteWheelGenerator, 테스트에서는 정해진 순서)
      */
     public GameManager(Board board, Supplier<Tetromino> nextType) {
+        this(board, nextType, Difficulty.DEFAULT);
+    }
+
+    public GameManager(Board board, Supplier<Tetromino> nextType, Difficulty difficulty) {
         this.board = board;
         this.nextType = nextType;
+        this.difficulty = difficulty;
+        this.score = new ScoreManager(difficulty);
     }
 
     // 새 게임 시작: 보드를 비우고 첫 블럭을 생성
@@ -43,6 +63,7 @@ public class GameManager {
         score.reset();
         gameOver = false;
         paused = false;
+        clearingRows = List.of();
         next = nextType.get();
         spawnNext();
     }
@@ -123,6 +144,20 @@ public class GameManager {
         return false;
     }
 
+    /**
+     * 줄 삭제 연출이 끝났을 때 호출한다.
+     * 꽉 찬 줄을 실제로 지우고 다음 블럭을 생성한다.
+     * 줄 삭제 중이 아니면 아무 일도 하지 않는다.
+     */
+    public void finishLineClear() {
+        if (!isClearing()) {
+            return;
+        }
+        board.clearFullLines();
+        clearingRows = List.of();
+        spawnNext();
+    }
+
     // 일시정지 ↔ 재개. 게임오버 상태에서는 아무 일도 하지 않는다.
     public void togglePause() {
         if (gameOver) {
@@ -153,8 +188,22 @@ public class GameManager {
         return paused;
     }
 
+    // 꽉 찬 줄을 보여 주는 중이라 아직 지우지 않은 상태인가
+    public boolean isClearing() {
+        return !clearingRows.isEmpty();
+    }
+
+    // 지우는 중인 줄의 행 번호 (위에서 아래 순서, 보드 기준 = 버퍼 행 포함)
+    public List<Integer> getClearingRows() {
+        return clearingRows;
+    }
+
     public int getScore(){
         return score.score();
+    }
+
+    public Difficulty getDifficulty(){
+        return difficulty;
     }
 
     public int getLevel(){
@@ -183,7 +232,7 @@ public class GameManager {
 
     // 게임오버도 일시정지도 아닐 때만 조작할 수 있다.
     private boolean canAct() {
-        return !gameOver && !paused;
+        return !gameOver && !paused && !isClearing();
     }
 
     private boolean tryMove(int dRow, int dCol) {
@@ -211,9 +260,17 @@ public class GameManager {
             return;
         }
 
-        int cleard = board.clearFullLines();
-        score.addLineClear(cleard);
-        spawnNext();
+        List<Integer> full = board.fullRows();
+        if (full.isEmpty()) {
+            spawnNext();
+            return;
+        }
+
+        // 꽉 찬 줄이 있으면 바로 지우지 않고 '줄 삭제 중' 상태로 멈춘다.
+        // 점수는 지금 올리고, 실제 삭제와 다음 블럭 생성은 finishLineClear()에서 한다.
+        score.addLineClear(full.size());
+        clearingRows = full;
+        current = null;   // 방금 블럭은 보드에 고정됐으니 따로 그리지 않는다
     }
 
     private void spawnNext() {

@@ -8,14 +8,18 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 
+import com.tetr11s.game.Difficulty;
+
 /**
- * 스코어보드를 파일에 저장하고 불러온다
+ * 스코어보드를 파일에 저장하고 불러온다 (난이도마다 따로)
  *
  * 설정(save.properties)과 다른 파일에 저장해서, 설정을 초기화해도 기록은 남는다
- * 기록을 지우는 건 delete()뿐이다 (설정 화면의 '기록 초기화')
+ * 기록을 지우는 건 delete()뿐이다 (설정 화면의 '기록 초기화', 모든 난이도)
  *
+ * 난이도 구분이 없던 예전 형식(0.name=...)은 읽지 않고, 다음에 저장할 때 지워진다
  */
 public class ScoreStore {
 
@@ -34,25 +38,16 @@ public class ScoreStore {
     }
 
     /**
-     * 저장된 기록을 읽는다
+     * 이 난이도의 기록을 읽는다
      * 파일이 없거나 읽을 수 없으면 빈 스코어보드, 망가진 줄은 건너뛴다
      */
-    public ScoreBoard load() {
-        if (!Files.exists(path)) {
-            return new ScoreBoard();
-        }
-
-        Properties properties = new Properties();
-        try (InputStream input = Files.newInputStream(path)) {
-            properties.load(input);
-        } catch (IOException | IllegalArgumentException e) {   // 읽기 실패, 또는 유니코드 이스케이프가 깨진 파일
-            System.err.println("스코어보드 파일을 읽을 수 없습니다: " + e.getMessage());
-            return new ScoreBoard();
-        }
+    public ScoreBoard load(Difficulty difficulty) {
+        Properties properties = read();
+        String prefix = prefix(difficulty);
 
         List<ScoreEntry> entries = new ArrayList<>();
         for (int rank = 0; rank < ScoreBoard.CAPACITY; rank++) {
-            ScoreEntry entry = parseEntry(properties, rank);
+            ScoreEntry entry = parseEntry(properties, prefix + rank);
             if (entry != null) {
                 entries.add(entry);
             }
@@ -60,15 +55,60 @@ public class ScoreStore {
         return new ScoreBoard(entries);
     }
 
-    /** 스코어보드 전체를 파일에 덮어쓴다 */
-    public void save(ScoreBoard board) {
+    /**
+     * 이 난이도의 순위표를 덮어쓴다. 다른 난이도의 기록은 그대로 둔다
+     */
+    public void save(Difficulty difficulty, ScoreBoard board) {
+        Properties saved = read();
         Properties properties = new Properties();
-        List<ScoreEntry> entries = board.entries();
-        for (int rank = 0; rank < entries.size(); rank++) {
-            properties.setProperty(rank + ".name", entries.get(rank).name());
-            properties.setProperty(rank + ".score", Integer.toString(entries.get(rank).score()));
+
+        // 다른 난이도의 기록만 옮겨 담는다 (이 난이도의 이전 기록과 예전 형식의 키는 여기서 버려진다)
+        for (Difficulty other : Difficulty.values()) {
+            if (other == difficulty) {
+                continue;
+            }
+            String otherPrefix = prefix(other);
+            for (String key : saved.stringPropertyNames()) {
+                if (key.startsWith(otherPrefix)) {
+                    properties.setProperty(key, saved.getProperty(key));
+                }
+            }
         }
 
+        String prefix = prefix(difficulty);
+        List<ScoreEntry> entries = board.entries();
+        for (int rank = 0; rank < entries.size(); rank++) {
+            properties.setProperty(prefix + rank + ".name", entries.get(rank).name());
+            properties.setProperty(prefix + rank + ".score", Integer.toString(entries.get(rank).score()));
+        }
+        write(properties);
+    }
+
+    /** 기록 초기화: 파일을 지운다 (모든 난이도. 없으면 아무 일도 하지 않음) */
+    public void delete() {
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException e) {
+            throw new IllegalStateException("스코어보드 파일을 삭제할 수 없습니다: " + path, e);
+        }
+    }
+
+    // 파일 전체를 읽는다. 없거나 읽을 수 없으면 비어 있는 Properties
+    private Properties read() {
+        Properties properties = new Properties();
+        if (!Files.exists(path)) {
+            return properties;
+        }
+        try (InputStream input = Files.newInputStream(path)) {
+            properties.load(input);
+        } catch (IOException | IllegalArgumentException e) {   // 읽기 실패, 또는 유니코드 이스케이프가 깨진 파일
+            System.err.println("스코어보드 파일을 읽을 수 없습니다: " + e.getMessage());
+            return new Properties();
+        }
+        return properties;
+    }
+
+    private void write(Properties properties) {
         try {
             Files.createDirectories(path.getParent());
             try (OutputStream output = Files.newOutputStream(path)) {
@@ -79,25 +119,21 @@ public class ScoreStore {
         }
     }
 
-    /** 기록 초기화: 파일을 지운다 (없으면 아무 일도 하지 않음) */
-    public void delete() {
-        try {
-            Files.deleteIfExists(path);
-        } catch (IOException e) {
-            throw new IllegalStateException("스코어보드 파일을 삭제할 수 없습니다: " + path, e);
-        }
+    // 난이도별 키의 앞부분 (예: "normal.")
+    private static String prefix(Difficulty difficulty) {
+        return difficulty.name().toLowerCase(Locale.ROOT) + ".";
     }
 
-    // 한 순위의 기록을 읽는다. 없거나 망가졌으면 null
-    private static ScoreEntry parseEntry(Properties properties, int rank) {
-        String name = properties.getProperty(rank + ".name");
-        String score = properties.getProperty(rank + ".score");
+    // 한 순위의 기록을 읽는다 (key 예: "normal.0"). 없거나 망가졌으면 null
+    private static ScoreEntry parseEntry(Properties properties, String key) {
+        String name = properties.getProperty(key + ".name");
+        String score = properties.getProperty(key + ".score");
         if (name == null || score == null) {
             return null;
         }
         try {
             return new ScoreEntry(name, Integer.parseInt(score.strip()));
-        } catch (IllegalArgumentException e) {   // 숫자가 아님(NumberFormatException 포함), 빈 이름, 음수 점수
+        } catch (IllegalArgumentException e) {   // 숫자가 아님(NumberFormatException 포함), 빈 이름, 8자 초과, 음수 점수
             return null;
         }
     }

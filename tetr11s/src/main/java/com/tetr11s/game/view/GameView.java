@@ -35,6 +35,8 @@ public class GameView extends HBox {
     private final Label levelValue = infoLabel("1");
     private final Label linesValue = infoLabel("0");
     private final Label statusLabel = infoLabel("");
+
+    private boolean lineClearFlash;   // 지울 줄을 흰색으로 그릴 차례인가 (GameController가 정해 줌)
     
 
     public GameView(GameManager game, DefaultPalette palette, KeyBindings bindings) {
@@ -50,6 +52,7 @@ public class GameView extends HBox {
                 infoLabel("SCORE"), scoreValue,
                 infoLabel("LEVEL"), levelValue,
                 infoLabel("LINES"), linesValue,
+                infoLabel("MODE"), infoLabel(game.getDifficulty().displayName()),
                 statusLabel,
                 helpLabel());
         side.setAlignment(Pos.TOP_LEFT);
@@ -61,9 +64,14 @@ public class GameView extends HBox {
         // TODO: 드래그 기반 크기 조절을 추가할 때는 비율 유지와 반응형 레이아웃을 함께 처리한다.
     }
 
+    /** 줄 삭제 연출에서 지금 흰색으로 그릴 차례인지 알려 준다. 다음 refresh()부터 반영된다. */
+    public void setLineClearFlash(boolean on) {
+        this.lineClearFlash = on;
+    }
+
     /** 게임 상태를 읽어서 화면 전체를 다시 그린다. */
     public void refresh() {
-        boardView.render(game);
+        boardView.render(game, lineClearFlash);
         nextView.render(game.getNext());
 
         scoreValue.setText(String.valueOf(game.getScore()));

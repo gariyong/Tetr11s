@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
 
+import com.tetr11s.game.Difficulty;
 import com.tetr11s.game.controller.GameAction;
 import com.tetr11s.game.tetromino.Tetromino;
 
@@ -23,6 +24,7 @@ public final class SettingsStore {
     private static final String ACTIVE_KEY_PREFIX = "active.key.";
     private static final String KEY_PRESET_PREFIX = "preset.";
     private static final String COLOR_PRESET_PREFIX = "preset.";
+    private static final String DIFFICULTY_KEY = "active.difficulty";
 
     private SettingsStore() {
     }
@@ -123,6 +125,17 @@ public final class SettingsStore {
     public static void saveScale(double scale) {
         Properties properties = load();
         properties.setProperty("active.scale", Double.toString(scale));
+        save(properties);
+    }
+
+    // 저장된 난이도. 저장한 적이 없거나 알 수 없는 값이면 Difficulty.DEFAULT (Normal)
+    public static Difficulty loadDifficulty() {
+        return Difficulty.fromSaved(load().getProperty(DIFFICULTY_KEY));
+    }
+
+    public static void saveDifficulty(Difficulty difficulty) {
+        Properties properties = load();
+        properties.setProperty(DIFFICULTY_KEY, difficulty.name());
         save(properties);
     }
 
