@@ -6,6 +6,7 @@ import java.util.List;
 import com.tetr11s.game.tetromino.Block;
 import com.tetr11s.game.tetromino.Cell;
 import com.tetr11s.game.tetromino.Tetromino;
+import com.tetr11s.game.battle.GarbageLine;
 import com.tetr11s.game.item.Item;
 
 /**
@@ -22,11 +23,13 @@ public class Board{
     public static final int VISIBLE_HEIGHT = 20;
     public static final int BUFFER_ROWS = 2;
     public static final int HEIGHT = VISIBLE_HEIGHT + BUFFER_ROWS;
+    public static final Tetromino GARBAGE_PLACEHOLDER = Tetromino.I;
 
     private final int width;
     private final int height;
     private final Tetromino[][] grid;
     private final Item[][] items;
+    private final boolean[][] garbage;
 
     // 기본 보드(너비 10, 보이는 20줄 + 버퍼 2줄)
     public Board(){
@@ -42,14 +45,99 @@ public class Board{
         this.height = height;
         this.grid = new Tetromino[height][width];
         this.items = new Item[height][width];
+        this.garbage = new boolean[height][width];
     }
 
+    // 보드의 너비와 높이 반환
     public int width(){
         return width;
     }
 
     public int height(){
         return height;
+    }
+
+    /**
+     * ④ 공격 줄을 보드 맨 아래에 추가하고, 기존 블럭은 그만큼 위로 민다.
+     * lines의 순서는 위에서 아래: 마지막 줄이 보드의 맨 아래 줄이 된다.
+     *
+     * @return 밀린 블럭이 보드 맨 위를 넘어가 사라졌으면 true (top out)
+     */
+    public boolean addGarbageLine(List<GarbageLine> lines){
+        // lines가 비어있으면 아무것도 하지 않는다
+        if(lines.isEmpty()){
+            return false;
+        }
+
+        for(GarbageLine line : lines){
+            if(line.width() != width){
+                throw new IllegalArgumentException(
+                    "공격 줄 너비가 보드와 다름: 보드 " + width + ", 줄 " + line.width());
+            }
+        }
+
+        int n = lines.size();
+        if(n > height){
+            throw new IllegalArgumentException(
+                "공격 줄이 보드 높이보다 많음: " + n
+            );
+        }
+
+        // top out 판정: 맨 위 n줄은 밀려서 보드 밖으로 나간다.
+        // 거기에 블럭이 하나라도 있으면 사라지는 것이므로 top out
+        boolean toppedOut = false;
+        for(int row = 0; row < n; row++){
+            if(!isRowEmpty(row)){
+                toppedOut = true;
+                break;
+            }
+        }
+
+        // 기존 줄을 n칸 위로 올린다 (위에서부터 내려가며 복사)
+        // row행 자리에 row+n행을 가져온다
+        for(int row = 0; row < height - n; row++){
+            grid[row] = grid[row + n];
+            items[row] = items[row + n];
+            garbage[row] = garbage[row + n];
+        }
+
+        // n줄을 공격 줄로 새로 채운다
+        for(int i = 0; i < n; i++){
+            int row = height - n + i;
+            GarbageLine line = lines.get(i);
+
+            grid[row] = new Tetromino[width];
+            items[row] = new Item[width];
+            garbage[row] = new boolean[width];
+
+            for (int col = 0; col < width; col++) {
+                if (line.isFilled(col)) {
+                    grid[row][col] = GARBAGE_PLACEHOLDER;   // "차 있음" 표시
+                    garbage[row][col] = true;               // 공격 줄 칸 표시
+                }
+            }
+        }    
+        
+        return toppedOut;
+    }
+
+    // 줄에 블럭이 하나도 없으면 true (isRowFull의 반대)
+    private boolean isRowEmpty(int row) {
+        for (Tetromino t : grid[row]) {
+            if (t != null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // 공격 줄인지 확인
+    public boolean isGarbage(int row, int col){
+        if(!isInside(new Cell(row, col))){
+            throw new IllegalArgumentException("보드 밖의 칸: (" + row + ", " + col + ")");
+        }
+
+        return garbage[row][col];
     }
 
     // 칸이 보드 범위 안에 있는가
@@ -105,6 +193,7 @@ public class Board{
         }
         grid[row][col] = null;
         items[row][col] = null;
+        garbage[row][col] = false;
     }
 
     // 블럭의 모든 칸이 보드 안에 있고 비어있으면 true
@@ -165,6 +254,7 @@ public class Board{
 
             grid[write] = grid[read];
             items[write] = items[read];
+            garbage[write] = garbage[read];
             write--;
         }
 
@@ -172,7 +262,9 @@ public class Board{
         for (; write >= 0; write--) {
             grid[write] = new Tetromino[width];
             items[write] = new Item[width];
+            garbage[write] = new boolean[width];
         }
+
         return cleared;
     }
 
@@ -190,11 +282,12 @@ public class Board{
             }
             grid[write] = grid[read];
             items[write] = items[read];
-            write--;
+            garbage[write] = garbage[read];            write--;
         }
         while (write >= 0) {
             grid[write] = new Tetromino[width];
             items[write] = new Item[width];
+            garbage[write] = new boolean[width];
             write--;
         }
     }
@@ -204,6 +297,7 @@ public class Board{
         for (int r = 0; r < height; r++) {
             grid[r] = new Tetromino[width];
             items[r] = new Item[width];
+            garbage[r] = new boolean[width];
         }
     }
 
