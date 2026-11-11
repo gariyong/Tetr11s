@@ -167,6 +167,23 @@ class AttackCalculatorTest {
         assertEquals(List.of(), AttackCalculator.calculate(b, List.of(4, 5), o.cells()));
     }
 
+    // ---------- linesOf: 규칙 없이 모양만 ----------
+
+    @Test
+    void linesOf는_한_줄이어도_공격_줄_모양을_만든다() {
+        Board b = new Board(W, H);
+        Block l = setUpThreeLinesWithL(b);
+        assertEquals(List.of(TestLines.of("XXXXXXXX..")), AttackCalculator.linesOf(b, List.of(5), l.cells()));
+    }
+
+    @Test
+    void calculate는_linesOf에_2줄_규칙을_더한_것이다() {
+        Board b = new Board(W, H);
+        Block l = setUpThreeLinesWithL(b);
+        assertEquals(AttackCalculator.linesOf(b, List.of(3, 4, 5), l.cells()),
+                AttackCalculator.calculate(b, List.of(3, 4, 5), l.cells()));
+    }
+
     // ---------- 보드는 바뀌지 않음 ----------
 
     @Test
