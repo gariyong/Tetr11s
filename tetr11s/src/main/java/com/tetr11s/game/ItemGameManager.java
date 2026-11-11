@@ -3,6 +3,7 @@ package com.tetr11s.game;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.function.Supplier;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -10,6 +11,7 @@ import com.tetr11s.game.item.Item;
 import com.tetr11s.game.tetromino.Block;
 import com.tetr11s.game.tetromino.Cell;
 import com.tetr11s.game.tetromino.RouletteWheelGenerator;
+import com.tetr11s.game.tetromino.Tetromino;
 
 /**
  * 일반 낙하 규칙을 공유하면서, 블록이 고정되는 순간 아이템을 셀에 주입한다.
@@ -31,10 +33,17 @@ public class ItemGameManager extends GameManager {
         this(difficulty, false);
     }
 
-    public ItemGameManager(Difficulty difficulty, boolean bugMode) {
-        super(new Board(),
-                new RouletteWheelGenerator(RouletteWheelGenerator.weightsWithI(difficulty.iBlockWeight())),
-                difficulty, true);
+        public ItemGameManager(Difficulty difficulty, boolean bugMode) {
+        this(difficulty, bugMode,
+                new RouletteWheelGenerator(RouletteWheelGenerator.weightsWithI(difficulty.iBlockWeight())));
+    }
+
+    /**
+     * 블럭 생성기를 직접 정한다.
+     * 대전 모드에서 두 플레이어에게 같은 블럭 순서를 주려고 쓴다 (같은 seed의 생성기).
+     */
+    public ItemGameManager(Difficulty difficulty, boolean bugMode, Supplier<Tetromino> nextType) {
+        super(new Board(), nextType, difficulty, true);
         this.bugMode = bugMode;
     }
 
@@ -103,6 +112,7 @@ public class ItemGameManager extends GameManager {
                     rows.add(cell.row());
                 }
             }
+            recordClearedRows(rows);
             board.clearRows(rows);
             score.addLineClear(rows.size());
             scheduleItemIfNeeded();

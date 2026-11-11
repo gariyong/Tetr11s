@@ -1,7 +1,14 @@
 package com.tetr11s.game;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import com.tetr11s.game.battle.AttackCalculator;
+import com.tetr11s.game.battle.GarbageLine;
+import com.tetr11s.game.battle.GarbageQueue;
 
 import com.tetr11s.game.tetromino.Block;
 import com.tetr11s.game.tetromino.Cell;
@@ -13,6 +20,11 @@ import com.tetr11s.game.item.Item;
 /**
  * 테트리스 한 판의 규칙을 담당
  * 이동, 회전(SRS 벽 킥), 한 칸 낙하, 하드 드롭, 고정, 다음 블럭 생성, 게임오버 판정을 함
+ *
+ * 대전 모드 (1인 게임에서는 아무 영향 없음):
+ * - 2줄 이상 지우면 setOnAttack()으로 등록한 곳에 공격 줄을 보낸다
+ * - receiveGarbage()로 받은 공격 줄은 대기열에 있다가, 블럭을 처리한 뒤 다음 블럭이 생성되기 전에 보드 아래에 추가된다
+ * - 공격 줄 때문에 블럭이 보드 맨 위를 넘으면 게임오버 (top out)
  */
 public class GameManager {
 
@@ -28,6 +40,17 @@ public class GameManager {
     protected boolean paused;
     // 지금 지우는 중인 줄 (비어 있으면 줄 삭제 중이 아님)
     protected List<Integer> clearingRows = List.of();
+
+    // ----- 대전 -----
+    // 상대에게 받아서 아직 보드에 넣지 않은 공격 줄
+    protected final GarbageQueue incomingGarbage;
+    // 공격 줄을 보낼 곳 (1인 게임에서는 아무것도 하지 않음)
+    private Consumer<List<GarbageLine>> onAttack = lines -> { };
+    // 이번 고정에서 모은 공격 줄과 지운 줄 수 (줄 삭제 아이템 + 꽉 찬 줄을 합쳐서 판단)
+    private final List<GarbageLine> pendingAttack = new ArrayList<>();
+    private int clearedThisLock;
+    // 마지막에 고정한 블럭의 칸 (줄이 지워지면 함께 내려간 위치로 갱신)
+    private List<Cell> lockedCells = List.of();
 
     // 기본 게임: Normal 난이도
     public GameManager() {
@@ -62,6 +85,7 @@ public class GameManager {
         this.difficulty = difficulty;
         this.mode = itemMode;
         this.score = new ScoreManager(difficulty, itemMode);
+        this.incomingGarbage = new GarbageQueue(board.width());
     }
 
     // 새 게임 시작: 보드를 비우고 첫 블럭을 생성
@@ -71,6 +95,10 @@ public class GameManager {
         gameOver = false;
         paused = false;
         clearingRows = List.of();
+        incomingGarbage.reset();
+        pendingAttack.clear();
+        clearedThisLock = 0;
+        lockedCells = List.of();
         next = nextType.get();
         spawnNext();
     }
@@ -162,7 +190,7 @@ public class GameManager {
         }
         board.clearFullLines();
         clearingRows = List.of();
-        spawnNext();
+        addGarbageThenSpawn();
     }
 
     // 일시정지 ↔ 재개. 게임오버 상태에서는 아무 일도 하지 않는다.
@@ -171,6 +199,30 @@ public class GameManager {
             return;
         }
         paused = !paused;
+    }
+
+    // ----- 대전 -----
+
+    /**
+     * 공격 줄을 보낼 곳을 정한다. 2줄 이상 지울 때마다 호출된다.
+     * 대전에서는 상대의 receiveGarbage로 연결한다.
+     */
+    public void setOnAttack(Consumer<List<GarbageLine>> onAttack) {
+        this.onAttack = Objects.requireNonNull(onAttack, "onAttack");
+    }
+
+    /**
+     * 상대가 보낸 공격 줄을 받는다. 바로 보드에 넣지 않고 대기열에 쌓는다.
+     *
+     * @return 실제로 대기열에 들어간 줄 수 (10줄 제한으로 무시되거나 잘린 줄은 빠짐)
+     */
+    public int receiveGarbage(List<GarbageLine> lines) {
+        return incomingGarbage.receiveAttack(lines);
+    }
+
+    /** 받아서 대기 중인 공격 줄 (화면의 "넘어간 블럭 표시 부분"용, 위에서 아래 순서) */
+    public List<GarbageLine> getIncomingGarbage() {
+        return incomingGarbage.lines();
     }
 
     // ----- 상태 조회 (화면, 테스트용) -----
@@ -262,6 +314,7 @@ public class GameManager {
 
     protected void lockAndSpawn() {
         board.lock(current);
+        startAttackRecord(current);
         onBlockLocked(current);
 
         // 락 아웃: 블럭 전체가 보이지 않는 버퍼 영역에 고정되면 게임오버
@@ -273,8 +326,11 @@ public class GameManager {
         }
 
         List<Integer> full = board.fullRows();
+        recordClearedRows(full);   // 지우기 전에 공격 줄 모양을 기록
+        sendAttack();
+
         if (full.isEmpty()) {
-            spawnNext();
+            addGarbageThenSpawn();
             return;
         }
 
@@ -283,6 +339,69 @@ public class GameManager {
         score.addLineClear(full.size());
         clearingRows = full;
         current = null;   // 방금 블럭은 보드에 고정됐으니 따로 그리지 않는다
+    }
+
+    /**
+     * 줄을 지우기 "전에" 호출해서 상대에게 보낼 공격 줄 모양을 기록한다.
+     * 줄 삭제 아이템처럼 꽉 차지 않은 줄을 지우는 서브클래스도 지우기 전에 이 메서드를 호출한다.
+     *
+     * @param rows 지울 줄의 행 번호 (위에서 아래 순서)
+     */
+    protected void recordClearedRows(List<Integer> rows) {
+        if (rows.isEmpty()) {
+            return;
+        }
+        pendingAttack.addAll(AttackCalculator.linesOf(board, rows, lockedCells));
+        clearedThisLock += rows.size();
+        lockedCells = cellsAfterClearing(lockedCells, rows);
+    }
+
+    // 블럭을 고정하면 이번 고정의 공격 기록을 새로 시작한다
+    private void startAttackRecord(Block locked) {
+        pendingAttack.clear();
+        clearedThisLock = 0;
+        lockedCells = locked.cells();
+    }
+
+    // 이번 고정에서 모두 합쳐 2줄 이상 지웠으면 공격 줄을 보낸다
+    private void sendAttack() {
+        if (clearedThisLock >= AttackCalculator.MIN_LINES_FOR_ATTACK && !pendingAttack.isEmpty()) {
+            onAttack.accept(List.copyOf(pendingAttack));
+        }
+        pendingAttack.clear();
+        clearedThisLock = 0;
+    }
+
+    /**
+     * 받은 공격 줄을 보드 아래에 넣고 다음 블럭을 생성한다.
+     * 블럭을 처리한 뒤 다음 블럭이 생성되기 전에 반드시 이 메서드를 거친다.
+     */
+    private void addGarbageThenSpawn() {
+        boolean toppedOut = board.addGarbageLine(incomingGarbage.takeAll());
+        if (toppedOut) {
+            gameOver = true;
+            current = null;
+            return;
+        }
+        spawnNext();
+    }
+
+    /** rows 줄이 지워진 뒤 cells가 옮겨 갈 위치. 지워진 줄의 칸은 빠지고, 그 아래에서 지워진 줄 수만큼 내려간다. */
+    static List<Cell> cellsAfterClearing(List<Cell> cells, List<Integer> rows) {
+        List<Cell> moved = new ArrayList<>();
+        for (Cell c : cells) {
+            if (rows.contains(c.row())) {
+                continue;
+            }
+            int below = 0;
+            for (int row : rows) {
+                if (row > c.row()) {
+                    below++;
+                }
+            }
+            moved.add(new Cell(c.row() + below, c.col()));
+        }
+        return List.copyOf(moved);
     }
 
     protected void onBlockLocked(Block locked) {
