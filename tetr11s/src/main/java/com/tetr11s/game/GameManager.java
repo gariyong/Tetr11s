@@ -282,8 +282,11 @@ public class GameManager {
         return score.dropIntervalMillis();
     }
 
-    // 현재 블럭이 떨어질 위치 (고스트 블럭)
+    // 현재 블럭이 떨어질 위치 (고스트 블럭). 현재 블럭이 없으면(줄 삭제 중, 게임오버) null
     public Block getGhost() {
+        if (current == null) {
+            return null;
+        }
         Block ghost = current;
         while (board.canPlace(ghost.move(1, 0))) {
             ghost = ghost.move(1, 0);

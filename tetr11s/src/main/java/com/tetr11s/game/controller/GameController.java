@@ -95,7 +95,12 @@ public class GameController {
                 lastDropMs = nowMillis();
             }
             case PAUSE -> togglePause();
-            case QUIT -> quit();
+            case QUIT -> {
+                // 종료하면 화면이 바뀌므로 이전 화면을 다시 그리지 않는다
+                if (quit()) {
+                    return;
+                }
+            }
         }
         update();
     }
@@ -155,13 +160,16 @@ public class GameController {
     /**
      * 게임 중에 누르면 먼저 일시정지하고 안내를 보여준다.
      * 일시정지나 게임오버 상태에서 한 번 더 누르면 종료한다.
+     *
+     * @return 게임을 종료했으면 true, 일시정지만 했으면 false
      */
-    private void quit() {
+    private boolean quit() {
         if (game.isPaused() || game.isGameOver()) {
             onQuit.accept(game.getScore()); //stop 은 ScreenManager 로 관리
-        } else {
-            togglePause();
+            return true;
         }
+        togglePause();
+        return false;
     }
 
     private void update() {
