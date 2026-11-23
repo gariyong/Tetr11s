@@ -23,7 +23,7 @@ import com.tetr11s.game.battle.GarbageLine;
  */
 public sealed interface Message extends Serializable {
 
-    /** 메시지나 BoardSnapshot의 구성을 바꾸면 2 올리고, 서로 다르면 접속을 끊는다 */
+    /** 메시지나 BoardSnapshot의 구성을 바꾸면 1 올리고, 서로 다르면 접속을 끊는다 */
     int PROTOCOL_VERSION = 2;
 
     /** 연결 직후 양쪽이 서로 보낸다 */
