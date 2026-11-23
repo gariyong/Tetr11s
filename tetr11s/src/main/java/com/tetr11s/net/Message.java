@@ -23,8 +23,8 @@ import com.tetr11s.game.battle.GarbageLine;
  */
 public sealed interface Message extends Serializable {
 
-    /** 메시지나 BoardSnapshot의 구성을 바꾸면 1 올리고, 서로 다르면 접속을 끊는다 */
-    int PROTOCOL_VERSION = 1;
+    /** 메시지나 BoardSnapshot의 구성을 바꾸면 2 올리고, 서로 다르면 접속을 끊는다 */
+    int PROTOCOL_VERSION = 2;
 
     /** 연결 직후 양쪽이 서로 보낸다 */
     record Hello(int protocolVersion) implements Message {
@@ -51,8 +51,14 @@ public sealed interface Message extends Serializable {
         }
     }
 
-    /** 클라이언트 -> 서버: '게임 시작'을 눌렀다, 취소했다 */
-    record Ready(boolean ready) implements Message {
+    /**
+     * 클라이언트 -> 서버: '게임 시작'을 눌렀다, 취소했다
+     * mode는 그때 클라이언트에 보이던 모드 (그 사이 서버가 모드를 바꿨으면 서버가 무시한다)
+     */
+    record Ready(boolean ready, BattleMode mode) implements Message {
+        public Ready {
+            Objects.requireNonNull(mode, "mode");
+        }
     }
 
     /**

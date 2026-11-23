@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.Test;
 
+import com.tetr11s.game.battle.BattleMode;
 import com.tetr11s.net.CloseReason;
 import com.tetr11s.net.Connection;
 import com.tetr11s.net.HandshakeException;
@@ -90,8 +91,8 @@ class HostGuestTest {
         BlockingQueue<Message> received = new LinkedBlockingQueue<>();
         hostSide.start(into(received), callbacks);
         guestSide.start(into(new LinkedBlockingQueue<>()), callbacks);
-        guestSide.send(new Message.Ready(true));
-        assertEquals(new Message.Ready(true), received.poll(WAIT_MS, TimeUnit.MILLISECONDS));
+        guestSide.send(new Message.Ready(true, BattleMode.NORMAL));
+        assertEquals(new Message.Ready(true, BattleMode.NORMAL), received.poll(WAIT_MS, TimeUnit.MILLISECONDS));
     }
 
     // ---------- 클라이언트 실패 ----------

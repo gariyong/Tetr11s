@@ -28,6 +28,7 @@ public final class TestProxy implements AutoCloseable {
     private final long delayNanos;
     private final int bytesPerSecond;
     private final List<Socket> sockets = new CopyOnWriteArrayList<>();
+    private volatile boolean paused;
 
     /**
      * @param delayMs        한 방향에 더할 지연 (0이면 없음)
@@ -48,6 +49,14 @@ public final class TestProxy implements AutoCloseable {
 
     public int port() {
         return server.getLocalPort();
+    }
+
+    /**
+     * true면 연결은 그대로 둔 채 전달만 멈춘다 (상대가 응답하지 않는 상황 흉내)
+     * false로 되돌리면 그동안 쌓인 것부터 다시 전달한다
+     */
+    public void setPaused(boolean paused) {
+        this.paused = paused;
     }
 
     @Override
@@ -111,6 +120,9 @@ public final class TestProxy implements AutoCloseable {
             OutputStream out = to.getOutputStream();
             while (true) {
                 Chunk chunk = line.take();
+                while (paused) {
+                    TimeUnit.MILLISECONDS.sleep(5);
+                }
                 sleepUntil(chunk.dueNanos());
                 if (chunk.bytes() == END) {
                     to.shutdownOutput();

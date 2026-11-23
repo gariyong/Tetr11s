@@ -34,7 +34,7 @@ class MessageTest {
                 new Message.Hello(Message.PROTOCOL_VERSION),
                 new Message.Bye(Message.Bye.Reason.LEFT),
                 new Message.LobbyState(BattleMode.ITEM, true, false),
-                new Message.Ready(true),
+                new Message.Ready(true, BattleMode.ITEM),
                 new Message.Start(BattleMode.TIME_LIMIT, Difficulty.HARD, 42L, 120_000, 3_000),
                 new Message.Snapshot(7, BoardSnapshot.of(game)),
                 new Message.SnapshotAck(7),
@@ -89,6 +89,7 @@ class MessageTest {
     void 잘못된_값으로는_만들_수_없다() {
         assertThrows(NullPointerException.class, () -> new Message.Bye(null));
         assertThrows(NullPointerException.class, () -> new Message.LobbyState(null, false, false));
+        assertThrows(NullPointerException.class, () -> new Message.Ready(true, null));
         assertThrows(NullPointerException.class,
                 () -> new Message.Start(null, Difficulty.NORMAL, 1L, 120_000, 3_000));
         assertThrows(IllegalArgumentException.class,

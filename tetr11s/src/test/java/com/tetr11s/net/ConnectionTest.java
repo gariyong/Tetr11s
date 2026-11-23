@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.Test;
 
 import com.tetr11s.game.BoardSnapshot;
+import com.tetr11s.game.battle.BattleMode;
 
 class ConnectionTest {
 
@@ -100,7 +101,7 @@ class ConnectionTest {
         // 2. 첫 메시지가 Hello가 아닌 상대
         ServerSocket listening2 = listen();
         Future<Connection> accepted2 = acceptAndOpen(listening2, Connection.Options.DEFAULT);
-        toClose.add(new RawPeer(listening2.getLocalPort(), new Message.Ready(true)));
+        toClose.add(new RawPeer(listening2.getLocalPort(), new Message.Ready(true, BattleMode.NORMAL)));
 
         assertEquals(HandshakeException.Reason.NOT_TETR11S, handshakeFailure(accepted2).reason());
     }
