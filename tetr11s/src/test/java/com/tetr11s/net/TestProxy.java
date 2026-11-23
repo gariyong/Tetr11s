@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
  * 접속을 하나 받아서 target 포트로 이어 주고, 오가는 바이트에 지연과 속도 제한을 건다 (양쪽 방향 모두 같은 조건)
  * 한쪽이 출력을 닫으면(FIN) 반대쪽에도 그대로 전한다
  */
-final class TestProxy implements AutoCloseable {
+public final class TestProxy implements AutoCloseable {
 
     private static final byte[] END = new byte[0];   // "상대가 출력을 닫았음" 표시
 
@@ -33,7 +33,7 @@ final class TestProxy implements AutoCloseable {
      * @param delayMs        한 방향에 더할 지연 (0이면 없음)
      * @param bytesPerSecond 한 방향의 최대 속도 (0이면 제한 없음)
      */
-    static TestProxy start(int targetPort, int delayMs, int bytesPerSecond) throws IOException {
+    public static TestProxy start(int targetPort, int delayMs, int bytesPerSecond) throws IOException {
         TestProxy proxy = new TestProxy(targetPort, delayMs, bytesPerSecond);
         daemon(proxy::acceptOne, "proxy-accept");
         return proxy;
@@ -46,7 +46,7 @@ final class TestProxy implements AutoCloseable {
         this.bytesPerSecond = bytesPerSecond;
     }
 
-    int port() {
+    public int port() {
         return server.getLocalPort();
     }
 
