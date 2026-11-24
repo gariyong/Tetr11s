@@ -42,6 +42,7 @@ public class ItemGameManager extends GameManager {
 
     private final Random random = new Random();
     private Item pendingItem;
+    private List<Integer> pendingItemIndices = List.of();
     private Item currentItem;
     private List<Integer> currentItemIndices = List.of();
     private int linesAtLastItem;
@@ -80,6 +81,7 @@ public class ItemGameManager extends GameManager {
     @Override
     public void start() {
         pendingItem = null;
+        pendingItemIndices = List.of();
         currentItem = null;
         currentItemIndices = List.of();
         linesAtLastItem = 0;
@@ -194,14 +196,19 @@ public class ItemGameManager extends GameManager {
     @Override
     protected void spawnNext() {
         weightCrushing = false;
-        if (pendingItem == Item.M) {
+        Item itemToSpawn = pendingItem;
+        List<Integer> indicesToSpawn = pendingItemIndices;
+        pendingItem = null;
+        pendingItemIndices = List.of();
+
+        if (itemToSpawn == Item.M) {
             // 1x1 단일 셀 메테오는 버퍼 행(0~1)에서 시작하면 2틱 동안 숨어 있으므로,
             // 보이는 최상단 행(Board.BUFFER_ROWS)부터 배치해 스폰 즉시 화면에 나타나게 한다.
             current = spawnMeteor();
             if (!board.canPlace(current)) {
                 gameOver = true;
             }
-        } else if (pendingItem == Item.W) {
+        } else if (itemToSpawn == Item.W) {
             current = Block.special(WEIGHT_SHAPE, board.width());
             if (!board.canPlace(current)) {
                 gameOver = true;
@@ -209,9 +216,21 @@ public class ItemGameManager extends GameManager {
         } else {
             super.spawnNext();
         }
-        currentItem = pendingItem;
-        currentItemIndices = currentItem == null ? List.of() : itemIndices(current, currentItem);
-        pendingItem = null;
+        currentItem = itemToSpawn;
+        if (currentItem == null) {
+            currentItemIndices = List.of();
+        } else if (currentItem == Item.M || currentItem == Item.W || indicesToSpawn.isEmpty()) {
+            currentItemIndices = itemIndices(current, currentItem);
+        } else {
+            currentItemIndices = indicesToSpawn;
+        }
+        if (itemToSpawn != null) {
+            locksSinceItem = 0;
+        }
+
+        // 다음 턴(NEXT 미리보기)에 대기할 아이템을 스폰 직후 예약해
+        // 현재 블록을 조작하는 동안 NEXT 창에 대기 중인 아이템이 표시되도록 한다.
+        scheduleNextPreviewItem();
     }
 
     private Block spawnMeteor() {
@@ -230,7 +249,6 @@ public class ItemGameManager extends GameManager {
         if (!isClearing()) {
             return;
         }
-        scheduleItemIfNeeded();
         super.finishLineClear();
     }
 
@@ -247,7 +265,6 @@ public class ItemGameManager extends GameManager {
         score.addLineClear(full.size());
         clearingRows = full;
         current = null;
-        scheduleItemIfNeeded();
         return true;
     }
 
@@ -288,17 +305,13 @@ public class ItemGameManager extends GameManager {
         if (current == null) {
             return;
         }
+        if (bugMode) {
+            locksSinceItem++;
+        }
         if (currentItem == Item.M) {
             // 메테오는 보드에 쌓이는 블록이 아니라 충돌 즉시 파괴·비산 후 소멸하므로
             // board.lock(current)을 거치지 않고 전용 충돌 경로로 처리한다.
             Block meteor = current;
-            if (bugMode) {
-                locksSinceItem++;
-                if (locksSinceItem >= 5 && pendingItem == null) {
-                    pendingItem = randomItem();
-                    locksSinceItem = 0;
-                }
-            }
             List<Cell> scattered = handleMeteorLocked(meteor);
             List<Integer> full = board.fullRows();
             startAttackRecord(scattered);
@@ -311,21 +324,12 @@ public class ItemGameManager extends GameManager {
                 clearingRows = full;
                 current = null;
             }
-            scheduleItemIfNeeded();
             return;
         }
         if (currentItem != null) {
             inject(current, currentItem);
         }
-        if (bugMode) {
-            locksSinceItem++;
-            if (locksSinceItem >= 5 && pendingItem == null) {
-                pendingItem = randomItem();
-                locksSinceItem = 0;
-            }
-        }
         super.lockAndSpawn();
-        scheduleItemIfNeeded();
     }
 
     @Override
@@ -723,13 +727,18 @@ public class ItemGameManager extends GameManager {
         return pendingItem;
     }
 
+    /** NEXT 미리보기 블록에서 아이템 표시가 붙을 셀 인덱스 목록 */
+    public List<Integer> getNextItemIndices() {
+        return pendingItemIndices;
+    }
+
     /** 테스트용: 난수 시드 고정 및 다음 아이템 지정 */
     void setRandomSeed(long seed) {
         random.setSeed(seed);
     }
 
     void forceNextItem(Item item) {
-        this.pendingItem = item;
+        queuePendingItem(item);
     }
 
     private List<Cell> getItemCells(Block block) {
@@ -753,15 +762,19 @@ public class ItemGameManager extends GameManager {
     }
 
     private List<Integer> itemIndices(Block block, Item item) {
+        return itemIndicesForSize(block.cells().size(), item);
+    }
+
+    private List<Integer> itemIndicesForSize(int size, Item item) {
         List<Integer> selected = new ArrayList<>();
-        selected.add(random.nextInt(block.cells().size()));
+        selected.add(random.nextInt(size));
         if (item == Item.W) {
             selected.clear();
-            for (int index = 0; index < block.cells().size(); index++) {
+            for (int index = 0; index < size; index++) {
                 selected.add(index);
             }
         } else if (item == Item.H || item == Item.O) {
-            for (int index = 0; index < block.cells().size(); index++) {
+            for (int index = 0; index < size; index++) {
                 if (!selected.contains(index) && random.nextDouble() < 0.15) {
                     selected.add(index);
                 }
@@ -775,9 +788,26 @@ public class ItemGameManager extends GameManager {
         return values[random.nextInt(values.length)];
     }
 
-    private void scheduleItemIfNeeded() {
-        if (!bugMode && getLines() / 10 > linesAtLastItem / 10 && pendingItem == null) {
-            pendingItem = randomItem();
+    private void queuePendingItem(Item item) {
+        pendingItem = item;
+        if (item == null || item == Item.M || item == Item.W || next == null) {
+            pendingItemIndices = List.of();
+        } else {
+            pendingItemIndices = itemIndicesForSize(next.cells(0).size(), item);
+        }
+    }
+
+    private void scheduleNextPreviewItem() {
+        if (pendingItem != null) {
+            return;
+        }
+        if (bugMode) {
+            if (locksSinceItem >= 4) {
+                queuePendingItem(randomItem());
+                locksSinceItem = 0;
+            }
+        } else if (getLines() / 10 > linesAtLastItem / 10) {
+            queuePendingItem(randomItem());
             linesAtLastItem = getLines();
         }
     }

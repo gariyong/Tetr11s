@@ -537,4 +537,28 @@ class ItemGameManagerTest {
         }
         assertEquals(hCountBefore, hCountAfter, "L 줄 삭제 후 아래에 있던 같은 블록 H가 자폭하면 안 됨");
     }
+
+    @Test
+    void 버그판에서_아이템이_나오기_직전_턴에_NEXT_블록란에_대기중인_아이템이_표시된다() {
+        ItemGameManager game = new ItemGameManager(Difficulty.NORMAL, true, always(Tetromino.O));
+        game.setRandomSeed(3L);
+        game.start();
+
+        // 1~3번째 고정: 아직 NEXT에 아이템 없음
+        for (int i = 0; i < 3; i++) {
+            game.hardDrop();
+            assertNull(game.getNextItemType());
+        }
+
+        // 4번째 고정 직후: 5번째 블록이 떨어지는 동안 NEXT에 대기 중인 아이템이 표시되어야 함!
+        game.hardDrop();
+        Item previewed = game.getNextItemType();
+        assertNotNull(previewed, "아이템이 나오기 직전 턴에는 NEXT 블록란에 대기 아이템이 보여야 함");
+        assertNull(game.getCurrentItem(), "현재 조작 중인 5번째 블록은 아직 일반 블록이어야 함");
+
+        // 5번째 고정 직후: NEXT에 보였던 바로 그 아이템이 현재 블록으로 스폰됨
+        game.hardDrop();
+        assertEquals(previewed, game.getCurrentItem(), "NEXT에 대기 중이던 아이템이 그대로 스폰되어야 함");
+        assertNull(game.getNextItemType(), "스폰 직후에는 NEXT 대기 아이템이 비워져야 함");
+    }
 }
