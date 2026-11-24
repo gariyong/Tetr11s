@@ -172,6 +172,9 @@ public class BoardView extends Canvas {
     }
 
     private void drawItem(int r, int c, Item item) {
+        if (r < 0 || r >= rows || c < 0 || c >= cols) {
+            return;
+        } // 버퍼 행 범위 가드
         double x = PADDING + c * CELL_SIZE;
         double y = PADDING + r * CELL_SIZE;
         double size = CELL_SIZE - CELL_GAP;
