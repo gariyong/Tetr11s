@@ -34,6 +34,18 @@ public class NextBlockView extends Canvas {
 
     public void render(Tetromino next, Item item) {
         clear();
+        if (item == Item.M) {
+            drawItem(new Cell(1, 1), Item.M);
+            return;
+        }
+        if (item == Item.W) {
+            for (Cell c : java.util.List.of(
+                    new Cell(1, 1), new Cell(1, 2),
+                    new Cell(2, 0), new Cell(2, 1), new Cell(2, 2), new Cell(2, 3))) {
+                drawItem(c, Item.W);
+            }
+            return;
+        }
         if (next == null) {
             return;
         }

@@ -80,6 +80,14 @@ public class GameView extends HBox {
     public void refresh() {
         boardView.render(game, lineClearFlash);
         nextView.render(game.getNext(), game.getNextItemType());
+        if (game instanceof com.tetr11s.game.ItemGameManager itemGame) {
+            double[] shake = itemGame.getShakeOffset(System.currentTimeMillis());
+            setTranslateX(shake[0]);
+            setTranslateY(shake[1]);
+        } else {
+            setTranslateX(0);
+            setTranslateY(0);
+        }
 
         scoreValue.setText(String.valueOf(game.getScore()));
         levelValue.setText(String.valueOf(game.getLevel()));

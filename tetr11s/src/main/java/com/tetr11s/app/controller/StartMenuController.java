@@ -47,6 +47,10 @@ public class StartMenuController {
         this.screenManager = screenManager;
     }
 
+    public void showMessage(String message) {
+        messageLabel.setText(message == null ? "" : message);
+    }
+
     @FXML
     private void initialize() {
         for (MenuEntry entry : menu.entries()) {
@@ -115,14 +119,14 @@ public class StartMenuController {
         double current = SettingsStore.loadScale();
         double next = current == 0.75 ? 1.0 : current == 1.0 ? 1.25 : 0.75;
         SettingsStore.saveScale(next);
-        screenManager.applyScale(next);
-        messageLabel.setText("게임 크기: " + next + "배");
+        String res = ScreenManager.getResolutionText(next);
+        screenManager.refreshStartMenu("게임 크기: " + res + " (" + next + "배)");
     }
 
     @FXML
     private void resetSettings() {
         SettingsStore.delete();
-        messageLabel.setText("모든 설정을 초기화했습니다.");
+        screenManager.refreshStartMenu("모든 설정을 초기화했습니다.");
     }
 
 }

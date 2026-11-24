@@ -14,19 +14,22 @@ import javafx.scene.paint.Color;
 public class DefaultPalette {
 
     private static final String SYMBOL = "■";
+    private static final Map<Tetromino, Color> DEFAULT_COLORS = Map.of(
+            Tetromino.I, Color.rgb(0, 240, 240),   // 하늘색
+            Tetromino.O, Color.rgb(240, 240, 0),   // 노랑
+            Tetromino.T, Color.rgb(160, 0, 240),   // 보라
+            Tetromino.S, Color.rgb(0, 240, 0),     // 초록
+            Tetromino.Z, Color.rgb(240, 0, 0),     // 빨강
+            Tetromino.J, Color.rgb(0, 0, 240),     // 파랑
+            Tetromino.L, Color.rgb(240, 160, 0)    // 주황
+    );
 
     private final Map<Tetromino, Color> colors = new EnumMap<>(Tetromino.class);
     private final Map<Tetromino, TexturePattern> patterns = new EnumMap<>(Tetromino.class);
     private boolean colorblindMode;
 
     public DefaultPalette() {
-        colors.put(Tetromino.I, Color.rgb(0, 240, 240));   // 하늘색
-        colors.put(Tetromino.O, Color.rgb(240, 240, 0));   // 노랑
-        colors.put(Tetromino.T, Color.rgb(160, 0, 240));   // 보라
-        colors.put(Tetromino.S, Color.rgb(0, 240, 0));     // 초록
-        colors.put(Tetromino.Z, Color.rgb(240, 0, 0));     // 빨강
-        colors.put(Tetromino.J, Color.rgb(0, 0, 240));     // 파랑
-        colors.put(Tetromino.L, Color.rgb(240, 160, 0));   // 주황
+        colors.putAll(DEFAULT_COLORS);
 
         patterns.put(Tetromino.I, TexturePattern.NONE);
         patterns.put(Tetromino.T, TexturePattern.DIAGONAL);
@@ -39,9 +42,9 @@ public class DefaultPalette {
         loadActivePalette();
     }
 
-    // 블럭 종류별 색
+    // 블럭 종류별 색 (커스텀/색맹 모드가 꺼져 있으면 기본 표준 색상 반환)
     public Color getColor(Tetromino type) {
-        return colors.get(type);
+        return colorblindMode ? colors.get(type) : DEFAULT_COLORS.get(type);
     }
 
     // 블럭 한 칸을 그릴 글자
@@ -64,6 +67,7 @@ public class DefaultPalette {
 
     public void setColor(Tetromino type, Color color) {
         colors.put(type, color);
+        colorblindMode = true;
         saveActivePalette();
     }
 
@@ -74,13 +78,7 @@ public class DefaultPalette {
     }
 
     public void restoreDefaultColors() {
-        colors.put(Tetromino.I, Color.rgb(0, 240, 240));
-        colors.put(Tetromino.O, Color.rgb(240, 240, 0));
-        colors.put(Tetromino.T, Color.rgb(160, 0, 240));
-        colors.put(Tetromino.S, Color.rgb(0, 240, 0));
-        colors.put(Tetromino.Z, Color.rgb(240, 0, 0));
-        colors.put(Tetromino.J, Color.rgb(0, 0, 240));
-        colors.put(Tetromino.L, Color.rgb(240, 160, 0));
+        colors.putAll(DEFAULT_COLORS);
         saveActivePalette();
     }
 
@@ -96,7 +94,7 @@ public class DefaultPalette {
         }
         Properties properties = SettingsStore.load();
         for (Tetromino type : Tetromino.values()) {
-            properties.setProperty(SettingsStore.colorKey(normalized, type), SettingsStore.toHex(colors.get(type)));
+            properties.setProperty(SettingsStore.colorKey(normalized, type), SettingsStore.toHex(getColor(type)));
         }
         SettingsStore.save(properties);
     }

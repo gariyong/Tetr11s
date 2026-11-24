@@ -2,13 +2,10 @@ package com.tetr11s.game;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -23,18 +20,27 @@ import com.tetr11s.game.tetromino.Tetromino;
  * 일반 낙하 규칙을 공유하면서, 아이템(L, W, H, O, M) 생성·효과를 처리한다.
  */
 public class ItemGameManager extends GameManager {
-
-    // 메테오, 무게추 아이템 모양 정의. 아이템 처리중 사용하는 상수 정의.
     private static final List<Cell> METEOR_SHAPE = List.of(new Cell(0, 0));
     private static final List<Cell> WEIGHT_SHAPE = List.of(
             new Cell(0, 1), new Cell(0, 2),
             new Cell(1, 0), new Cell(1, 1),
             new Cell(1, 2), new Cell(1, 3));
     private static final int WATER_FILL_COUNT = 5;
-    private static final int MAX_METEOR_SCATTER_CELLS = 3;
+    private static final long WATER_STEP_DELAY_MS = 90L;
+    public static final long WATER_RISE_DURATION_MS = 260L;
+    public static final long METEOR_SCATTER_DURATION_MS = 320L;
+    public static final long EXPLOSION_DURATION_MS = 280L;
+    public static final long SCREEN_SHAKE_DURATION_MS = 280L;
 
+    /** 메테오 충돌 후 대각선으로 비산하는 파편 연출용 정보 (H/O는 아이템 표시까지 유지) */
+    public record MeteorFragment(Cell from, Cell peak, Cell to, Tetromino type, Item item, long startMs) {
+    }
 
-    private final Random random;
+    /** 수소폭탄(H2) 3x3 폭발 연출용 정보 */
+    public record ExplosionEffect(int row, int col, long startMs) {
+    }
+
+    private final Random random = new Random();
     private Item pendingItem;
     private Item currentItem;
     private List<Integer> currentItemIndices = List.of();
@@ -42,6 +48,12 @@ public class ItemGameManager extends GameManager {
     private final boolean bugMode;
     private int locksSinceItem;
     private boolean weightCrushing;
+    private final List<MeteorFragment> meteorFragments = new ArrayList<>();
+    private final List<ExplosionEffect> explosions = new ArrayList<>();
+    private long itemEffectUntilMs;
+    private long shakeStartMs;
+    private double shakeIntensity;
+    private int nextItemGroupId = 1;
 
     public ItemGameManager() {
         this(Difficulty.DEFAULT);
@@ -51,7 +63,7 @@ public class ItemGameManager extends GameManager {
         this(difficulty, false);
     }
 
-        public ItemGameManager(Difficulty difficulty, boolean bugMode) {
+    public ItemGameManager(Difficulty difficulty, boolean bugMode) {
         this(difficulty, bugMode,
                 new RouletteWheelGenerator(RouletteWheelGenerator.weightsWithI(difficulty.iBlockWeight())));
     }
@@ -61,14 +73,8 @@ public class ItemGameManager extends GameManager {
      * 대전 모드에서 두 플레이어에게 같은 블럭 순서를 주려고 쓴다 (같은 seed의 생성기).
      */
     public ItemGameManager(Difficulty difficulty, boolean bugMode, Supplier<Tetromino> nextType) {
-        this(new Board(), nextType, difficulty, bugMode, new Random());
-    }
-
-     /** 테스트 등에서 보드와 난수를 직접 주입할 수 있는 생성자 */
-    ItemGameManager(Board board, Supplier<Tetromino> nextType, Difficulty difficulty, boolean bugMode, Random random) {
-        super(board, nextType, difficulty, true);
+        super(new Board(), nextType, difficulty, true);
         this.bugMode = bugMode;
-        this.random = random;
     }
 
     @Override
@@ -79,10 +85,17 @@ public class ItemGameManager extends GameManager {
         linesAtLastItem = 0;
         locksSinceItem = 0;
         weightCrushing = false;
+        meteorFragments.clear();
+        explosions.clear();
+        itemEffectUntilMs = 0L;
+        shakeStartMs = 0L;
+        shakeIntensity = 0.0;
+        nextItemGroupId = 1;
         super.start();
     }
 
-    // ------ 무게 추 전용 조작 오버라이드 ------
+    // ----- 무게추(W) 전용 조작 오버라이드 -----
+
     @Override
     public boolean moveLeft() {
         if (currentItem == Item.W && weightCrushing) {
@@ -90,6 +103,7 @@ public class ItemGameManager extends GameManager {
         }
         return super.moveLeft();
     }
+
     @Override
     public boolean moveRight() {
         if (currentItem == Item.W && weightCrushing) {
@@ -97,6 +111,7 @@ public class ItemGameManager extends GameManager {
         }
         return super.moveRight();
     }
+
     @Override
     public boolean softDrop() {
         if (currentItem == Item.W) {
@@ -107,6 +122,7 @@ public class ItemGameManager extends GameManager {
         }
         return super.softDrop();
     }
+
     @Override
     public int hardDrop() {
         if (currentItem == Item.W) {
@@ -123,6 +139,7 @@ public class ItemGameManager extends GameManager {
         }
         return super.hardDrop();
     }
+
     @Override
     public boolean tick() {
         if (currentItem == Item.W) {
@@ -137,6 +154,7 @@ public class ItemGameManager extends GameManager {
         }
         return super.tick();
     }
+
     @Override
     public Block getGhost() {
         if (current == null) {
@@ -151,11 +169,7 @@ public class ItemGameManager extends GameManager {
         }
         return super.getGhost();
     }
-    /**
-     * 무게추를 한 칸 아래로 내리며 지나가는 자리의 모든 블록·아이템을 점수 없이 지운다.
-     * 한 번이라도 다른 블록에 닿으면 weightCrushing이 true가 되어 이후 좌우 이동이 잠긴다.
-     * 바닥에 도달하면 false를 반환하고, 이후 lockAndSpawn()에서 6칸 무게추 모양 그대로 바닥에 고정된다.
-     */
+
     private boolean stepWeightDown() {
         Block candidate = current.move(1, 0);
         if (!isWithinBottom(candidate)) {
@@ -170,6 +184,7 @@ public class ItemGameManager extends GameManager {
         current = candidate;
         return true;
     }
+
     private boolean isWithinBottom(Block block) {
         return block.cells().stream().allMatch(c -> c.row() < board.height());
     }
@@ -180,7 +195,9 @@ public class ItemGameManager extends GameManager {
     protected void spawnNext() {
         weightCrushing = false;
         if (pendingItem == Item.M) {
-            current = Block.special(METEOR_SHAPE, board.width());
+            // 1x1 단일 셀 메테오는 버퍼 행(0~1)에서 시작하면 2틱 동안 숨어 있으므로,
+            // 보이는 최상단 행(Board.BUFFER_ROWS)부터 배치해 스폰 즉시 화면에 나타나게 한다.
+            current = spawnMeteor();
             if (!board.canPlace(current)) {
                 gameOver = true;
             }
@@ -197,6 +214,17 @@ public class ItemGameManager extends GameManager {
         pendingItem = null;
     }
 
+    private Block spawnMeteor() {
+        Block base = Block.special(METEOR_SHAPE, board.width());
+        for (int row = Board.BUFFER_ROWS; row >= 0; row--) {
+            Block candidate = base.move(row, 0);
+            if (board.canPlace(candidate)) {
+                return candidate;
+            }
+        }
+        return base;
+    }
+
     @Override
     public void finishLineClear() {
         if (!isClearing()) {
@@ -207,8 +235,86 @@ public class ItemGameManager extends GameManager {
     }
 
     @Override
+    protected boolean handlePostLineClear() {
+        List<Cell> filledWater = resolveBoardChemistry();
+        List<Integer> full = board.fullRows();
+        if (full.isEmpty()) {
+            return false;
+        }
+        startAttackRecord(filledWater);
+        recordClearedRows(full);
+        sendAttack();
+        score.addLineClear(full.size());
+        clearingRows = full;
+        current = null;
+        scheduleItemIfNeeded();
+        return true;
+    }
+
+    /**
+     * 줄 삭제 후 위 블록이 내려오면서 보드 위에서 새로 완성된 H2 / H2O 반응을 처리한다.
+     * 반응으로 채워진 물 셀 목록을 반환한다.
+     */
+    private List<Cell> resolveBoardChemistry() {
+        List<Cell> filledWater = new ArrayList<>();
+        // 1) 새로 인접하게 된 서로 다른 블록 소속 H2 폭발 검사 (8방향)
+        List<Cell> exploding = new ArrayList<>();
+        for (int r = 0; r < board.height(); r++) {
+            for (int c = 0; c < board.width(); c++) {
+                if (board.getItem(r, c) == Item.H && touchesOtherHydrogen(new Cell(r, c))) {
+                    exploding.add(new Cell(r, c));
+                }
+            }
+        }
+        for (Cell center : exploding) {
+            if (board.getItem(center.row(), center.col()) == Item.H) {
+                explode(center.row(), center.col());
+            }
+        }
+
+        // 2) 새로 H 2개와 인접하게 된 O (H2O) 물 반응 검사
+        for (int r = 0; r < board.height(); r++) {
+            for (int c = 0; c < board.width(); c++) {
+                if (board.getItem(r, c) == Item.O) {
+                    filledWater.addAll(tryReactOxygen(new Cell(r, c)));
+                }
+            }
+        }
+        return filledWater;
+    }
+
+    @Override
     protected void lockAndSpawn() {
-        if (current != null && currentItem != null) {
+        if (current == null) {
+            return;
+        }
+        if (currentItem == Item.M) {
+            // 메테오는 보드에 쌓이는 블록이 아니라 충돌 즉시 파괴·비산 후 소멸하므로
+            // board.lock(current)을 거치지 않고 전용 충돌 경로로 처리한다.
+            Block meteor = current;
+            if (bugMode) {
+                locksSinceItem++;
+                if (locksSinceItem >= 5 && pendingItem == null) {
+                    pendingItem = randomItem();
+                    locksSinceItem = 0;
+                }
+            }
+            List<Cell> scattered = handleMeteorLocked(meteor);
+            List<Integer> full = board.fullRows();
+            startAttackRecord(scattered);
+            recordClearedRows(full);
+            sendAttack();
+            if (full.isEmpty()) {
+                addGarbageThenSpawn();
+            } else {
+                score.addLineClear(full.size());
+                clearingRows = full;
+                current = null;
+            }
+            scheduleItemIfNeeded();
+            return;
+        }
+        if (currentItem != null) {
             inject(current, currentItem);
         }
         if (bugMode) {
@@ -221,10 +327,11 @@ public class ItemGameManager extends GameManager {
         super.lockAndSpawn();
         scheduleItemIfNeeded();
     }
+
     @Override
     protected List<Integer> extraRowsToClear(Block locked) {
         if (currentItem != Item.L) {
-            return List.of();
+            return List.of(); // L 아이템이 아니면 추가로 지울 줄 없음 (빈 리스트 반환)
         }
         List<Integer> rows = new ArrayList<>();
         for (Cell cell : getItemCells(locked)) {
@@ -235,26 +342,26 @@ public class ItemGameManager extends GameManager {
         return rows;
     }
 
-    // 블록 별 아이템 효과 처리
     @Override
     protected void onBlockLocked(Block locked) {
         // Item.W는 stepWeightDown()으로 바닥까지 밀어낸 뒤,
         // lockAndSpawn()의 inject + board.lock(current)로 6칸 무게추 모양과 W 표시가 바닥에 그대로 남는다.
+        // Item.M은 lockAndSpawn()에서 board.lock 없이 전용 충돌 경로로 처리된다.
         if (currentItem == Item.H) {
             handleHydrogenLocked(locked);
         } else if (currentItem == Item.O) {
             handleOxygenLocked(locked);
-        } else if (currentItem == Item.M) {
-            handleMeteorLocked(locked);
         }
     }
-     // ----- 3. 수소(H) 처리 (대각선 포함 8방향 접촉) -----
+
+    // ----- 3. 수소(H) 처리 (대각선 포함 8방향 접촉) -----
+
     private void handleHydrogenLocked(Block locked) {
         Set<Cell> newHCells = new LinkedHashSet<>(getItemCells(locked));
         List<Cell> exploding = new ArrayList<>();
-        // 새로 고정된 H 셀이 "보드에 이미 있던 다른 H 셀"과 8방향(대각선 포함)으로 접하면 폭발 대상 등록
+
         for (Cell hCell : newHCells) {
-            if (touchesOtherHydrogen(hCell, newHCells)) {
+            if (touchesOtherHydrogen(hCell)) {
                 exploding.add(hCell);
             }
         }
@@ -264,6 +371,7 @@ public class ItemGameManager extends GameManager {
             }
             return;
         }
+
         // 폭발하지 않았을 때, 새로 놓인 H 주변의 기존 O 셀이 H 2개와 인접하게 되었으면 물 반응 발동
         Set<Cell> checkedO = new HashSet<>();
         for (Cell hCell : newHCells) {
@@ -279,29 +387,40 @@ public class ItemGameManager extends GameManager {
             }
         }
     }
-    /** 대각선 포함 8방향에 같은 블록 소속이 아닌 다른 H 셀이 있는지 검사 */
-    private boolean touchesOtherHydrogen(Cell hCell, Set<Cell> sameBlockHCells) {
+
+    /** 대각선 포함 8방향에 같은 블록(itemGroup)이 아닌 다른 H 셀이 있는지 검사 */
+    private boolean touchesOtherHydrogen(Cell hCell) {
+        int myGroup = board.getItemGroup(hCell.row(), hCell.col());
         for (int r = hCell.row() - 1; r <= hCell.row() + 1; r++) {
             for (int c = hCell.col() - 1; c <= hCell.col() + 1; c++) {
+                if (r == hCell.row() && c == hCell.col()) {
+                    continue;
+                }
                 Cell neighbor = new Cell(r, c);
-                if (board.isInside(neighbor)
-                        && !sameBlockHCells.contains(neighbor)
-                        && board.getItem(r, c) == Item.H) {
-                    return true;
+                if (board.isInside(neighbor) && board.getItem(r, c) == Item.H) {
+                    int otherGroup = board.getItemGroup(r, c);
+                    if (myGroup == 0 || otherGroup == 0 || myGroup != otherGroup) {
+                        return true;
+                    }
                 }
             }
         }
         return false;
     }
+
     private void explode(int row, int col) {
         for (int r = row - 1; r <= row + 1; r++) {
             for (int c = col - 1; c <= col + 1; c++) {
                 board.clearCell(r, c);
             }
         }
+        long now = System.currentTimeMillis();
+        explosions.add(new ExplosionEffect(row, col, now));
+        extendItemEffect(now + EXPLOSION_DURATION_MS);
     }
-    
-    // ----- 4. 산소(O) 처리 -----
+
+    // ----- 4. 산소(O) 처리 (물 차오름) -----
+
     private void handleOxygenLocked(Block locked) {
         for (Cell oCell : getItemCells(locked)) {
             if (board.isInside(oCell) && board.getItem(oCell.row(), oCell.col()) == Item.O) {
@@ -309,10 +428,11 @@ public class ItemGameManager extends GameManager {
             }
         }
     }
-    private void tryReactOxygen(Cell oCell) {
+
+    private List<Cell> tryReactOxygen(Cell oCell) {
         List<Cell> adjacentHydrogens = findAdjacentHydrogens(oCell);
         if (adjacentHydrogens.size() < 2) {
-            return;
+            return List.of();
         }
         // 반응에 사용된 O와 H 2개의 아이템 속성을 소모 (무한 재반응 방지)
         board.setItem(oCell.row(), oCell.col(), null);
@@ -320,9 +440,9 @@ public class ItemGameManager extends GameManager {
             Cell h = adjacentHydrogens.get(i);
             board.setItem(h.row(), h.col(), null);
         }
-        fillWaterDownward(oCell);
+        return fillWaterDownward(oCell);
     }
-    /** 산소 셀 기준 8방향(대각선 허용) 인접한 수소 셀 목록 반환 */
+
     private List<Cell> findAdjacentHydrogens(Cell origin) {
         List<Cell> hydrogens = new ArrayList<>();
         for (int r = origin.row() - 1; r <= origin.row() + 1; r++) {
@@ -338,13 +458,8 @@ public class ItemGameManager extends GameManager {
         }
         return hydrogens;
     }
-    /**
-     * 물이 아래로 흘러내리며 공백을 메운다.
-     * 1) origin에서 아래/좌/우로 흘러 도달 가능한 빈칸을 우선 수집
-     * 2) 직접 연결된 빈칸이 없으면 origin 행 이하(row >= origin.row())의 빈칸을 수집
-     * 3) 가장 깊은 행(row 내림차순) -> origin 열에 가까운 순으로 최대 5칸을 일반 블록(item=null)으로 채움
-     */
-    private void fillWaterDownward(Cell origin) {
+
+    private List<Cell> fillWaterDownward(Cell origin) {
         List<Cell> candidates = findFlowReachableEmptyCells(origin);
         if (candidates.isEmpty()) {
             for (int r = origin.row(); r < board.height(); r++) {
@@ -355,8 +470,9 @@ public class ItemGameManager extends GameManager {
                 }
             }
         }
+
         candidates.sort((left, right) -> {
-            int rowCmp = Integer.compare(right.row(), left.row()); // 아래 행 우선
+            int rowCmp = Integer.compare(right.row(), left.row()); // 아래 행부터 차오름
             if (rowCmp != 0) {
                 return rowCmp;
             }
@@ -366,22 +482,34 @@ public class ItemGameManager extends GameManager {
             }
             return Integer.compare(left.col(), right.col());
         });
-        for (int i = 0; i < Math.min(WATER_FILL_COUNT, candidates.size()); i++) {
+
+        List<Cell> filled = new ArrayList<>();
+        long now = System.currentTimeMillis();
+        int count = Math.min(WATER_FILL_COUNT, candidates.size());
+        for (int i = 0; i < count; i++) {
             Cell cell = candidates.get(i);
-            board.fillCell(cell.row(), cell.col(), Tetromino.I, null); // Item.O가 아닌 null로 채움
+            board.fillWaterCell(cell.row(), cell.col(), Tetromino.I, now + i * WATER_STEP_DELAY_MS);
+            filled.add(cell);
         }
+        if (count > 0) {
+            extendItemEffect(now + (count - 1) * WATER_STEP_DELAY_MS + WATER_RISE_DURATION_MS);
+        }
+        return filled;
     }
+
     private List<Cell> findFlowReachableEmptyCells(Cell origin) {
-        int[][] flowDirs = {{1, 0}, {0, -1}, {0, 1}}; // 아래, 좌, 우로만 흐름 (위로 역류 금지)
+        int[][] flowDirs = {{1, 0}, {0, -1}, {0, 1}}; // 아래, 좌, 우로만 흐름
         Set<Cell> visited = new HashSet<>();
         Deque<Cell> queue = new ArrayDeque<>();
         List<Cell> reachable = new ArrayList<>();
+
         for (int[] d : flowDirs) {
             Cell start = new Cell(origin.row() + d[0], origin.col() + d[1]);
             if (board.isInside(start) && board.get(start.row(), start.col()) == null && visited.add(start)) {
                 queue.add(start);
             }
         }
+
         while (!queue.isEmpty()) {
             Cell cur = queue.poll();
             reachable.add(cur);
@@ -394,91 +522,216 @@ public class ItemGameManager extends GameManager {
         }
         return reachable;
     }
-    
-    // ----- 5. 메테오(M) 처리 -----
-    private record ScatteredCell(Cell source, Tetromino type) {
+
+    // ----- 5. 메테오(M) 처리 (3x3 파괴 + 좌우 옆 라인 비산 + H/O 무조건 생존 비산 + 화면 흔들림) -----
+
+    private record ScatteredCell(Cell source, Tetromino type, Item item, int itemGroup, int pushDir) {
     }
-    private void handleMeteorLocked(Block locked) {
-        List<ScatteredCell> normalCells = new ArrayList<>();
+
+    private List<Cell> handleMeteorLocked(Block locked) {
         List<Cell> meteorCells = getItemCells(locked);
         Cell center = meteorCells.isEmpty() ? locked.cells().get(0) : meteorCells.get(0);
-        // 1. 메테오 충돌 지점 주변 3x3 셀 단위 삭제
-        //    - O, H 아이템 셀은 명세대로 비산하지 않고 그대로 소멸
-        //    - 일반 블록 셀은 삭제하되 비산 후보에 추가
+        long now = System.currentTimeMillis();
+        List<ScatteredCell> cellsToScatter = new ArrayList<>();
+
+        // 1. 파괴존 (중심 3x3 박스): 일반 셀은 완전 파괴, H/O 셀은 무조건 살려서 비산 목록에 보존
         for (Cell meteor : meteorCells) {
             for (int r = meteor.row() - 1; r <= meteor.row() + 1; r++) {
                 for (int c = meteor.col() - 1; c <= meteor.col() + 1; c++) {
-                    if (r == meteor.row() && c == meteor.col()) {
-                        continue;
-                    }
                     Cell target = new Cell(r, c);
-                    if (!board.isInside(target) || board.get(r, c) == null) {
+                    if (!board.isInside(target)) {
                         continue;
                     }
-                    Item itemOnBoard = board.getItem(r, c);
-                    Tetromino blockType = board.get(r, c);
-                    board.clearCell(r, c);
-                    if (itemOnBoard != Item.H && itemOnBoard != Item.O) {
-                        normalCells.add(new ScatteredCell(target, blockType));
+                    if (!(r == meteor.row() && c == meteor.col()) && board.get(r, c) != null) {
+                        Item itemOnBoard = board.getItem(r, c);
+                        if (itemOnBoard == Item.H || itemOnBoard == Item.O) {
+                            int pushDir = c < center.col() ? -1 : (c > center.col() ? 1 : (random.nextBoolean() ? -1 : 1));
+                            cellsToScatter.add(new ScatteredCell(
+                                    target, board.get(r, c), itemOnBoard, board.getItemGroup(r, c), pushDir));
+                        }
                     }
+                    board.clearCell(r, c);
                 }
             }
-            board.clearCell(meteor.row(), meteor.col()); // 메테오 본체 삭제
         }
-        // 2. 일반 셀 중 일부(최대 3칸)만 좌우로 날려 보내고 중력 적용
-        Collections.shuffle(normalCells, random);
-        int scatterCount = Math.min(MAX_METEOR_SCATTER_CELLS, normalCells.size());
-        for (int i = 0; i < scatterCount; i++) {
-            scatterLeftRightAndFall(center, normalCells.get(i));
-        }
-    }
-    private void scatterLeftRightAndFall(Cell meteorCenter, ScatteredCell cell) {
-        int primaryDir;
-        if (cell.source().col() < meteorCenter.col()) {
-            primaryDir = -1;
-        } else if (cell.source().col() > meteorCenter.col()) {
-            primaryDir = 1;
-        } else {
-            primaryDir = random.nextBoolean() ? -1 : 1;
-        }
-        int[] dirs = {primaryDir, -primaryDir};
-        for (int dir : dirs) {
-            for (int dist = 2; dist <= 4; dist++) {
-                int destCol = cell.source().col() + dir * dist;
-                int startRow = Math.max(0, cell.source().row() - 1);
-                Cell dest = new Cell(startRow, destCol);
-                if (!board.isInside(dest) || board.get(startRow, destCol) != null) {
+
+        // 2. 비산존 (3x3 박스의 바로 좌우 옆 라인): 일반 셀과 H/O 셀 모두 바깥쪽 대각선 비산 대상에 추가
+        int[] sideCols = {center.col() - 2, center.col() + 2};
+        for (int sideCol : sideCols) {
+            int pushDir = sideCol < center.col() ? -1 : 1;
+            for (int r = center.row() - 1; r <= center.row() + 1; r++) {
+                Cell target = new Cell(r, sideCol);
+                if (!board.isInside(target) || board.get(r, sideCol) == null) {
                     continue;
                 }
-                int landingRow = startRow;
-                while (landingRow + 1 < board.height() && board.get(landingRow + 1, destCol) == null) {
-                    landingRow++;
-                }
-                board.fillCell(landingRow, destCol, cell.type(), null);
-                return;
+                Item itemOnBoard = board.getItem(r, sideCol);
+                Tetromino blockType = board.get(r, sideCol);
+                int group = board.getItemGroup(r, sideCol);
+                board.clearCell(r, sideCol);
+                cellsToScatter.add(new ScatteredCell(target, blockType, itemOnBoard, group, pushDir));
             }
+        }
+
+        // 3. 비산 대상 셀들을 좌/우 대각선으로 날려 보내고 중력 낙하 (H/O는 빈 칸이 있으면 무조건 생존 안착)
+        List<Cell> landedCells = new ArrayList<>();
+        for (ScatteredCell cell : cellsToScatter) {
+            Cell dest = scatterCellAndFall(cell, now);
+            if (dest != null) {
+                landedCells.add(dest);
+            }
+        }
+
+        // 4. 비산되어 착지한 H/O가 다른 H/O와 새로 접했으면 연쇄 화학 반응 처리
+        landedCells.addAll(resolveBoardChemistry());
+
+        // 5. 메테오 충격 화면 흔들림 발동
+        triggerScreenShake(8.0, now);
+        return landedCells;
+    }
+
+    /** 셀을 바깥쪽 대각선으로 튕겨낸 뒤 중력으로 바닥까지 낙하시킨다. H/O는 무조건 생존하도록 전체 빈칸 폴백을 가진다. */
+    private Cell scatterCellAndFall(ScatteredCell cell, long nowMs) {
+        int[] colDirs = {cell.pushDir(), -cell.pushDir()};
+        int[] rowDirs = {-1, 0, 1}; // 대각선 위 우선 -> 수평 -> 대각선 아래
+        int[] dists = {2, 1, 3};
+
+        for (int colDir : colDirs) {
+            for (int rowDir : rowDirs) {
+                for (int dist : dists) {
+                    int peakRow = Math.max(Board.BUFFER_ROWS, cell.source().row() + rowDir * dist);
+                    int destCol = cell.source().col() + colDir * dist;
+                    Cell peak = new Cell(peakRow, destCol);
+                    if (!board.isInside(peak) || board.get(peakRow, destCol) != null) {
+                        continue;
+                    }
+                    return landScatteredCell(cell, peak, nowMs);
+                }
+            }
+        }
+
+        // H, O는 무조건 살린 채 비산: 기본 대각선 자리가 모두 찼다면 보드 내 가장 가까운 빈 칸으로 대피 착지
+        if (cell.item() == Item.H || cell.item() == Item.O) {
+            Cell fallbackPeak = findNearestEmptyCell(cell.source());
+            if (fallbackPeak != null) {
+                return landScatteredCell(cell, fallbackPeak, nowMs);
+            }
+        }
+        return null;
+    }
+
+    private Cell landScatteredCell(ScatteredCell cell, Cell peak, long nowMs) {
+        int landingRow = peak.row();
+        while (landingRow + 1 < board.height() && board.get(landingRow + 1, peak.col()) == null) {
+            landingRow++;
+        }
+        Cell dest = new Cell(landingRow, peak.col());
+        board.fillCell(landingRow, peak.col(), cell.type(), null);
+        if (cell.item() != null) {
+            board.setItem(landingRow, peak.col(), cell.item(), cell.itemGroup());
+        }
+        meteorFragments.add(new MeteorFragment(cell.source(), peak, dest, cell.type(), cell.item(), nowMs));
+        extendItemEffect(nowMs + METEOR_SCATTER_DURATION_MS);
+        return dest;
+    }
+
+    private Cell findNearestEmptyCell(Cell origin) {
+        Cell best = null;
+        int bestDist = Integer.MAX_VALUE;
+        for (int r = Board.BUFFER_ROWS; r < board.height(); r++) {
+            for (int c = 0; c < board.width(); c++) {
+                if (board.get(r, c) == null) {
+                    int dist = Math.abs(r - origin.row()) + Math.abs(c - origin.col());
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        best = new Cell(r, c);
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    private void triggerScreenShake(double intensity, long nowMs) {
+        this.shakeStartMs = nowMs;
+        this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
+    }
+
+    /** 현재 시각 기준 화면 흔들림 오프셋(dx, dy)을 반환한다. 종료 시 (0, 0)으로 리셋된다. */
+    public double[] getShakeOffset(long nowMs) {
+        if (shakeStartMs == 0L) {
+            return new double[] {0.0, 0.0};
+        }
+        long elapsed = nowMs - shakeStartMs;
+        if (elapsed >= SCREEN_SHAKE_DURATION_MS) {
+            shakeStartMs = 0L;
+            shakeIntensity = 0.0;
+            return new double[] {0.0, 0.0};
+        }
+        double decay = 1.0 - (double) elapsed / SCREEN_SHAKE_DURATION_MS;
+        double dx = Math.sin(elapsed * 0.095) * shakeIntensity * decay;
+        double dy = Math.cos(elapsed * 0.125) * shakeIntensity * decay * 0.75;
+        return new double[] {dx, dy};
+    }
+
+    private void extendItemEffect(long untilMs) {
+        if (untilMs > itemEffectUntilMs) {
+            itemEffectUntilMs = untilMs;
         }
     }
 
+    /** 아이템 효과(물 차오름, 수소폭탄 폭발, 메테오 비산)가 아직 화면에 재생 중인지 여부 */
+    public boolean isItemEffectAnimating(long nowMs) {
+        return nowMs < itemEffectUntilMs;
+    }
+
+    /** 현재 진행 중인 메테오 비산 연출 파편 목록 반환 (끝난 항목은 자동 정리) */
+    public List<MeteorFragment> getActiveMeteorFragments(long nowMs) {
+        meteorFragments.removeIf(f -> nowMs - f.startMs() >= METEOR_SCATTER_DURATION_MS);
+        return List.copyOf(meteorFragments);
+    }
+
+    /** 현재 진행 중인 수소폭탄 폭발 연출 목록 반환 (끝난 항목은 자동 정리) */
+    public List<ExplosionEffect> getActiveExplosions(long nowMs) {
+        explosions.removeIf(e -> nowMs - e.startMs() >= EXPLOSION_DURATION_MS);
+        return List.copyOf(explosions);
+    }
+
+    /** 물 블록이나 아이템 연출/화면 흔들림이 있어 화면을 계속 갱신해야 하는지 여부 */
+    public boolean hasActiveVisualEffects() {
+        long now = System.currentTimeMillis();
+        meteorFragments.removeIf(f -> now - f.startMs() >= METEOR_SCATTER_DURATION_MS);
+        explosions.removeIf(e -> now - e.startMs() >= EXPLOSION_DURATION_MS);
+        return !meteorFragments.isEmpty() || !explosions.isEmpty()
+                || shakeStartMs > 0L || now < itemEffectUntilMs || board.hasWater();
+    }
 
     // ----- 상태 조회 및 유틸 -----
+
     public Item getCurrentItem() {
         return currentItem;
     }
+
     public List<Cell> getCurrentItemCells() {
         if (current == null) {
             return List.of();
         }
         return getItemCells(current);
     }
+
     @Override
     public Item getNextItemType() {
         return pendingItem;
     }
-    /** 테스트용: 다음에 나올 아이템을 강제로 지정한다. */
+
+    /** 테스트용: 난수 시드 고정 및 다음 아이템 지정 */
+    void setRandomSeed(long seed) {
+        random.setSeed(seed);
+    }
+
     void forceNextItem(Item item) {
         this.pendingItem = item;
     }
+
     private List<Cell> getItemCells(Block block) {
         List<Cell> cells = block.cells();
         List<Cell> selected = new ArrayList<>();
@@ -489,13 +742,16 @@ public class ItemGameManager extends GameManager {
         }
         return List.copyOf(selected);
     }
+
     private void inject(Block block, Item item) {
+        int groupId = nextItemGroupId++;
         for (Cell target : getItemCells(block)) {
             if (board.isInside(target)) {
-                board.setItem(target.row(), target.col(), item);
+                board.setItem(target.row(), target.col(), item, groupId);
             }
         }
     }
+
     private List<Integer> itemIndices(Block block, Item item) {
         List<Integer> selected = new ArrayList<>();
         selected.add(random.nextInt(block.cells().size()));
@@ -513,10 +769,12 @@ public class ItemGameManager extends GameManager {
         }
         return List.copyOf(selected);
     }
+
     private Item randomItem() {
         Item[] values = Item.values();
         return values[random.nextInt(values.length)];
     }
+
     private void scheduleItemIfNeeded() {
         if (!bugMode && getLines() / 10 > linesAtLastItem / 10 && pendingItem == null) {
             pendingItem = randomItem();

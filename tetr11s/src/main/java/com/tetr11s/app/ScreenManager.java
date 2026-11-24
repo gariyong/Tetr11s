@@ -115,7 +115,15 @@ public class ScreenManager {
     /**
      * start 함수에서 시작화면을 불러오는 함수
      */
-    public void showStartMenu() throws IOException{
+    public void showStartMenu() throws IOException {
+        showStartMenu(null);
+    }
+
+    /**
+     * 시작화면을 불러오고, 필요 시 하단 안내 메시지를 함께 표시한다.
+     * 해상도 변경/초기화 시 설정 화면(showSettings)과 동일하게 Scene을 재마운트해 창 크기를 정확히 맞춘다.
+     */
+    public void showStartMenu(String initialMessage) throws IOException {
         stopCurrentGame();
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/start_menu.fxml"));
@@ -123,9 +131,21 @@ public class ScreenManager {
 
         StartMenuController controller = loader.getController();
         controller.setScreenManager(this);
+        if (initialMessage != null && !initialMessage.isBlank()) {
+            controller.showMessage(initialMessage);
+        }
 
         stage.setTitle("Tetr11s");
         mountScene(root, MENU_BASE_WIDTH, MENU_BASE_HEIGHT);
+    }
+
+    /** 메인 화면에서 크기 변경·초기화 후 설정 화면과 동일한 방식으로 창을 리프레시한다. */
+    public void refreshStartMenu(String message) {
+        try {
+            showStartMenu(message);
+        } catch (IOException e) {
+            throw new RuntimeException("시작 메뉴를 새로고침할 수 없습니다.", e);
+        }
     }
 
     /**

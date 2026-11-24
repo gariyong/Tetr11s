@@ -120,9 +120,13 @@ public class GameController {
             return;
         }
 
-        // 줄 삭제 연출 중: 자동 낙하 대신 연출 시간을 진행한다
+        // 줄 삭제 연출 중: 아이템 효과(물 차오름/폭발/비산)가 먼저 끝난 뒤 줄 삭제 반짝임을 진행한다
         if (game.isClearing()) {
             lastDropMs = now;   // 연출 동안에도 낙하 시간이 쌓이지 않게
+            if (isWaitingForItemEffect()) {
+                update();
+                return;
+            }
             clearElapsedMs += elapsed;
             if (clearElapsedMs >= CLEAR_DURATION_MS) {
                 game.finishLineClear();
@@ -132,20 +136,27 @@ public class GameController {
             return;
         }
 
-        // 자동 낙하
+        // 자동 낙하 (창 멈춤 등으로 시간이 과도하게 누적된 경우 한 프레임에 여러 틱이 몰리지 않도록 보정)
+        long dropInterval = game.getDropIntervalMillis();
+        if (now - lastDropMs > dropInterval * 3) {
+            lastDropMs = now - dropInterval;
+        }
         boolean dropped = false;
 
-        while (now - lastDropMs >= game.getDropIntervalMillis()) {
-            lastDropMs += game.getDropIntervalMillis();
+        while (now - lastDropMs >= dropInterval) {
+            lastDropMs += dropInterval;
             game.tick();
             dropped = true;
 
             if (game.isGameOver() || game.isClearing()) {
                 break;
             }
+            dropInterval = game.getDropIntervalMillis();
         }
 
-        if (dropped) {
+        boolean hasEffects = (game instanceof com.tetr11s.game.ItemGameManager itemGame)
+                && itemGame.hasActiveVisualEffects();
+        if (dropped || hasEffects) {
             update();
         }
     }
@@ -180,9 +191,15 @@ public class GameController {
         }
     }
 
-    // 줄 삭제 연출 중 지금이 흰색 차례인가 (0~80ms 흰색, 80~160ms 원래 색, 160~240ms 흰색 ...)
+    // 줄 삭제 연출 중 지금이 흰색 차례인가 (아이템 효과가 먼저 끝난 뒤 80ms 간격으로 반짝임)
     private boolean isFlashOn() {
-        return game.isClearing() && (clearElapsedMs / FLASH_INTERVAL_MS) % 2 == 0;
+        return game.isClearing() && !isWaitingForItemEffect()
+                && (clearElapsedMs / FLASH_INTERVAL_MS) % 2 == 0;
+    }
+
+    private boolean isWaitingForItemEffect() {
+        return game instanceof com.tetr11s.game.ItemGameManager itemGame
+                && itemGame.isItemEffectAnimating(System.currentTimeMillis());
     }
 
     private static long nowMillis() {

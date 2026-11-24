@@ -189,7 +189,15 @@ public class GameManager {
         }
         board.clearRows(clearingRows);
         clearingRows = List.of();
+        if (handlePostLineClear()) {
+            return;
+        }
         addGarbageThenSpawn();
+    }
+
+    /** 줄 삭제 직후 연쇄 아이템 반응 등으로 다시 지울 줄이 생겼으면 true를 반환한다. */
+    protected boolean handlePostLineClear() {
+        return false;
     }
 
     // 일시정지 ↔ 재개. 게임오버 상태에서는 아무 일도 하지 않는다.
@@ -378,13 +386,17 @@ public class GameManager {
 
     // 블럭을 고정하면 이번 고정의 공격 기록을 새로 시작한다
     private void startAttackRecord(Block locked) {
+        startAttackRecord(locked.cells());
+    }
+
+    protected void startAttackRecord(List<Cell> cells) {
         pendingAttack.clear();
         clearedThisLock = 0;
-        lockedCells = locked.cells();
+        lockedCells = List.copyOf(cells);
     }
 
     // 이번 고정에서 모두 합쳐 2줄 이상 지웠으면 공격 줄을 보낸다
-    private void sendAttack() {
+    protected void sendAttack() {
         if (clearedThisLock >= AttackCalculator.MIN_LINES_FOR_ATTACK && !pendingAttack.isEmpty()) {
             onAttack.accept(List.copyOf(pendingAttack));
         }
@@ -396,7 +408,7 @@ public class GameManager {
      * 받은 공격 줄을 보드 아래에 넣고 다음 블럭을 생성한다.
      * 블럭을 처리한 뒤 다음 블럭이 생성되기 전에 반드시 이 메서드를 거친다.
      */
-    private void addGarbageThenSpawn() {
+    protected void addGarbageThenSpawn() {
         boolean toppedOut = board.addGarbageLine(incomingGarbage.takeAll());
         if (toppedOut) {
             gameOver = true;

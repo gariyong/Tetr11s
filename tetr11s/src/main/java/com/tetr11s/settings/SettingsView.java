@@ -43,7 +43,6 @@ public class SettingsView extends BorderPane {
     public static final double BASE_HEIGHT = 640;
 
     private static final double SAMPLE_CELL_SIZE = 17;
-    private static final double SAMPLE_GAP = 3;
     private static final String[] TAB_NAMES = {"화면", "게임", "기타"};
     private static final javafx.css.PseudoClass SELECTED =
             javafx.css.PseudoClass.getPseudoClass("selected");
@@ -68,6 +67,21 @@ public class SettingsView extends BorderPane {
     private VBox gameSection;
     private VBox otherSection;
     private ScrollPane settingsScroll;
+
+    // UI 즉시 동기화(refreshUi)용 컨트롤 참조
+    private CheckBox colorblindCheck;
+    private ComboBox<String> colorPresetCombo;
+    private ComboBox<String> scaleCombo;
+    private ComboBox<String> difficultyCombo;
+    private CheckBox bugModeCheck;
+    private ComboBox<String> keyPresetCombo;
+    private CheckBox keyResetConfirmCheck;
+    private CheckBox allResetConfirmCheck;
+
+    private GameAction capturingAction;
+    private boolean suppressNextKeyRelease;
+    private boolean syncingUi;
+
     private int rowNumber;
     private int selectedIndex = -1;
     private double lastX;
@@ -92,7 +106,12 @@ public class SettingsView extends BorderPane {
         setTop(createPreview());
         setCenter(createMainArea());
         createFooter(onBack);
-        drawSamples();
+
+        // 키 입력 캡처는 캡처링 단계(EventFilter)에서 가로채어 ScrollPane 방향키/Button Space·Enter 충돌을 막는다.
+        addEventFilter(KeyEvent.KEY_PRESSED, this::handleCapturingKeyPressed);
+        addEventFilter(KeyEvent.KEY_RELEASED, this::handleCapturingKeyReleased);
+
+        refreshUi();
     }
 
     // borderpane top: 테트로미노 미리보기 영역
@@ -108,7 +127,7 @@ public class SettingsView extends BorderPane {
             Color color = palette.getColor(type);
             double saturation = clamp(color.getSaturation() + event.getDeltaY() / 500.0);
             palette.setColor(type, Color.hsb(color.getHue(), saturation, color.getBrightness()));
-            drawSamples();
+            refreshUi();
         });
 
         Label guideLabel = new Label("블럭을 누르고 좌우 드래그: 색조, 상하 드래그: 명도, 스크롤: 채도");
@@ -119,7 +138,7 @@ public class SettingsView extends BorderPane {
         BorderPane.setAlignment(previewBox, Pos.CENTER);
         return previewBox;
     }
-    
+
     // borderpane center: 탭과 스크롤 영역
     private HBox createMainArea() {
         for (int i = 0; i < TAB_NAMES.length; i++) {
@@ -172,40 +191,70 @@ public class SettingsView extends BorderPane {
     // 화면 섹션 생성
     private VBox createDisplaySection() {
         VBox section = section("화면");
-        section.getChildren().add(checkRow("◆  블럭 설정색상 커스텀 사용",
-                palette.isColorblindMode(), palette::setColorblindMode));
 
-        ComboBox<String> colors = presetCombo(false);
-        Button load = accentButton("불러오기");
-        Button overwrite = accentButton("덮어쓰기");
-        load.setOnAction(event -> loadColorPreset(colors.getValue()));
-        overwrite.setOnAction(event -> {
-            if (saveColorPreset(colors.getValue())) {
-                addPresetItem(colors, colors.getValue());
-                loadColorPreset(colors.getValue());
+        colorblindCheck = checkBox("◆  블럭 설정색상 커스텀 사용");
+        colorblindCheck.setSelected(palette.isColorblindMode());
+        colorblindCheck.setOnAction(event -> {
+            if (syncingUi) {
+                return;
+            }
+            palette.setColorblindMode(colorblindCheck.isSelected());
+            refreshUi();
+        });
+        section.getChildren().add(settingRow("", colorblindCheck, new Label("")));
+
+        // 누락되었던 색맹/컬러 프리셋 행 복구
+        colorPresetCombo = presetCombo(false);
+        colorPresetCombo.setOnAction(event -> {
+            if (syncingUi) {
+                return;
+            }
+            if ("추가".equals(colorPresetCombo.getValue())) {
+                colorPresetCombo.getItems().remove("추가");
+                colorPresetCombo.setValue("새 프리셋");
+                colorPresetCombo.getEditor().selectAll();
+                return;
+            }
+            // 내장 색맹 프리셋(적록/적색/녹색/녹황)을 선택하면 즉시 미리보기에 반영
+            String selected = currentComboText(colorPresetCombo);
+            if (colorblindPreset(selected) != null) {
+                loadColorPreset(selected);
             }
         });
+        Button load = accentButton("불러오기");
+        Button overwrite = accentButton("덮어쓰기");
+        load.setOnAction(event -> loadColorPreset(currentComboText(colorPresetCombo)));
+        overwrite.setOnAction(event -> {
+            String target = currentComboText(colorPresetCombo);
+            if (saveColorPreset(target)) {
+                addPresetItem(colorPresetCombo, target);
+                loadColorPreset(target);
+            }
+        });
+        section.getChildren().add(settingRow("◆  색맹/컬러 프리셋", colorPresetCombo,
+                new HBox(6, load, overwrite)));
 
-        ComboBox<String> scales = new ComboBox<>();
-        scales.setEditable(false);
-        scales.getItems().addAll(
+        scaleCombo = new ComboBox<>();
+        scaleCombo.setEditable(false);
+        scaleCombo.getItems().addAll(
                 scaleLabel(0.75),
                 scaleLabel(1.0),
                 scaleLabel(1.25)
         );
-        scales.getItems().addAll(resolutionPresetNames());
-        scales.setValue(scaleLabel(SettingsStore.loadScale()));
+        scaleCombo.getItems().addAll(resolutionPresetNames());
+        scaleCombo.setValue(scaleLabel(SettingsStore.loadScale()));
 
         // 콤보박스에서 프리셋을 고르면 바로 적용되게 연결
-        scales.setOnAction(event -> {
-            if (scales.getValue() != null) {
-                loadScale(scales.getValue());
+        scaleCombo.setOnAction(event -> {
+            if (syncingUi || scaleCombo.getValue() == null) {
+                return;
             }
+            loadScale(scaleCombo.getValue());
         });
 
         Button scaleLoad = accentButton("적용");
-        scaleLoad.setOnAction(event -> loadScale(scales.getValue()));
-        section.getChildren().add(settingRow("화면 해상도", scales,
+        scaleLoad.setOnAction(event -> loadScale(scaleCombo.getValue()));
+        section.getChildren().add(settingRow("◆  화면 해상도", scaleCombo,
                 new HBox(6, scaleLoad)));
         return section;
     }
@@ -213,44 +262,57 @@ public class SettingsView extends BorderPane {
     // 게임 섹션 생성
     private VBox createGameSection() {
         VBox section = section("게임");
-        ComboBox<String> difficulty = new ComboBox<>();
+        difficultyCombo = new ComboBox<>();
         for (Difficulty value : Difficulty.values()) {
-            difficulty.getItems().add(value.displayName());
+            difficultyCombo.getItems().add(value.displayName());
         }
-        difficulty.setValue(SettingsStore.loadDifficulty().displayName());
-        difficulty.setOnAction(event -> {
+        difficultyCombo.setValue(SettingsStore.loadDifficulty().displayName());
+        difficultyCombo.setOnAction(event -> {
+            if (syncingUi) {
+                return;
+            }
             for (Difficulty value : Difficulty.values()) {
-                if (value.displayName().equals(difficulty.getValue())) {
+                if (value.displayName().equals(difficultyCombo.getValue())) {
                     SettingsStore.saveDifficulty(value);
                     break;
                 }
             }
+            refreshUi();
         });
-        section.getChildren().add(settingRow("◆  난이도", difficulty, new Label("")));
-        CheckBox bugMode = checkBox("◇ 템전 버그판 (5번 lock마다 아이템 블록)");
-        bugMode.setSelected(SettingsStore.loadItemBugMode());
-        bugMode.setOnAction(event -> SettingsStore.saveItemBugMode(bugMode.isSelected()));
-        section.getChildren().add(settingRow("", bugMode, new Label("테스트용")));
+        section.getChildren().add(settingRow("◆  난이도", difficultyCombo, new Label("")));
+
+        bugModeCheck = checkBox("◇ 템전 버그판 (5번 lock마다 아이템 블록)");
+        bugModeCheck.setSelected(SettingsStore.loadItemBugMode());
+        bugModeCheck.setOnAction(event -> {
+            if (syncingUi) {
+                return;
+            }
+            SettingsStore.saveItemBugMode(bugModeCheck.isSelected());
+            refreshUi();
+        });
+        section.getChildren().add(settingRow("", bugModeCheck, new Label("테스트용")));
         section.getChildren().add(createKeySettings());
         return section;
     }
 
-    // 키 설정 섹션 생성    
+    // 키 설정 섹션 생성
     private VBox createKeySettings() {
         VBox section = new VBox(6);
         section.getStyleClass().add("subsection");
         section.getChildren().add(sectionTitle("◆  키 설정"));
 
-        ComboBox<String> presets = presetCombo(true);
+        keyPresetCombo = presetCombo(true);
         Button load = accentButton("불러오기");
         Button overwrite = accentButton("덮어쓰기");
-        load.setOnAction(event -> loadKeyPreset(presets.getValue()));
+        load.setOnAction(event -> loadKeyPreset(currentComboText(keyPresetCombo)));
         overwrite.setOnAction(event -> {
-            if (saveKeyPreset(presets.getValue())) {
-                addPresetItem(presets, presets.getValue());
+            String target = currentComboText(keyPresetCombo);
+            if (saveKeyPreset(target)) {
+                addPresetItem(keyPresetCombo, target);
+                refreshUi();
             }
         });
-        section.getChildren().add(settingRow("", presets, new HBox(6, load, overwrite)));
+        section.getChildren().add(settingRow("", keyPresetCombo, new HBox(6, load, overwrite)));
 
         VBox keyRows = new VBox(0);
         for (GameAction action : GameAction.values()) {
@@ -260,50 +322,113 @@ public class SettingsView extends BorderPane {
         }
         section.getChildren().add(keyRows);
 
-        CheckBox confirm = checkBox("체크한 상태에서 초기화하면 만든 키 프리셋도 삭제");
+        keyResetConfirmCheck = checkBox("체크한 상태에서 초기화하면 만든 키 프리셋도 삭제");
         Button reset = dangerButton("키 설정 초기화");
         reset.setOnAction(event -> {
-            if (!confirm.isSelected()) {
+            if (!keyResetConfirmCheck.isSelected()) {
                 showMessage("키 설정 초기화", "초기화 체크박스를 먼저 선택하세요.");
                 return;
             }
+            capturingAction = null;
             bindings.resetToDefault();
             bindings.saveActive();
             bindings.deletePresets();
-            updateKeyButtons();
+            keyResetConfirmCheck.setSelected(false);
+            keyPresetCombo.setValue(null);
+            refreshUi();
             showMessage("키 설정 초기화", "키와 키 프리셋을 초기화했습니다.");
         });
-        section.getChildren().add(new HBox(6, reset, confirm));
+        section.getChildren().add(new HBox(6, reset, keyResetConfirmCheck));
         return section;
     }
 
     // 기타 섹션 생성
     private VBox createOtherSection() {
         VBox section = section("기타");
-        CheckBox confirm = checkBox("체크한 상태에서 초기화");
+        allResetConfirmCheck = checkBox("체크한 상태에서 초기화");
         Button reset = dangerButton("초기화");
         reset.setOnAction(event -> {
-            if (!confirm.isSelected()) {
+            if (!allResetConfirmCheck.isSelected()) {
                 showMessage("전체 초기화", "초기화 체크박스를 먼저 선택하세요.");
                 return;
             }
+            capturingAction = null;
             SettingsStore.delete();
             palette.resetAll();
             bindings.resetToDefault();
             bindings.saveActive();
             try {
-                new ScoreStore().delete();
+                new ScoreStore(false).delete();
+                new ScoreStore(true).delete();
             } catch (IllegalStateException e) {
                 showMessage("전체 초기화 실패", e.getMessage());
                 return;
             }
-            drawSamples();
+            allResetConfirmCheck.setSelected(false);
+            keyResetConfirmCheck.setSelected(false);
+            colorPresetCombo.setValue(null);
+            keyPresetCombo.setValue(null);
+            refreshUi();
             showMessage("전체 초기화", "스코어보드, 프리셋, 팔레트를 초기화했습니다.");
             onScaleChanged.accept(1.0);
         });
-        section.getChildren().add(settingRow("◆  초기화", reset, confirm));
+        section.getChildren().add(settingRow("◆  초기화", reset, allResetConfirmCheck));
         section.getChildren().add(settingRow("◆  소리", new Label("추가예정"), new Label("")));
         return section;
+    }
+
+    /**
+     * 설정창의 모든 컨트롤 표시(색맹 체크박스, 컬러/키 프리셋 목록, 해상도, 난이도, 버그판, 7개 키 버튼, 미리보기)를
+     * 현재 저장된 실제 상태로 즉시 리셋(동기화)한다. 스크롤 위치는 유지된다.
+     */
+    public void refreshUi() {
+        syncingUi = true;
+        try {
+            if (colorblindCheck != null) {
+                colorblindCheck.setSelected(palette.isColorblindMode());
+            }
+            if (colorPresetCombo != null) {
+                refreshPresetCombo(colorPresetCombo, colorPresetNames());
+            }
+            if (scaleCombo != null) {
+                scaleCombo.setValue(scaleLabel(SettingsStore.loadScale()));
+            }
+            if (difficultyCombo != null) {
+                difficultyCombo.setValue(SettingsStore.loadDifficulty().displayName());
+            }
+            if (bugModeCheck != null) {
+                bugModeCheck.setSelected(SettingsStore.loadItemBugMode());
+            }
+            if (keyPresetCombo != null) {
+                refreshPresetCombo(keyPresetCombo, keyPresetNames());
+            }
+            updateKeyButtons();
+            drawSamples();
+        } finally {
+            syncingUi = false;
+        }
+    }
+
+    private void refreshPresetCombo(ComboBox<String> combo, List<String> latestNames) {
+        String current = currentComboText(combo);
+        combo.getItems().setAll(latestNames);
+        if (current != null && !current.isBlank() && latestNames.contains(current)) {
+            combo.setValue(current);
+            combo.getEditor().setText(current);
+        } else {
+            combo.setValue(null);
+            combo.getEditor().clear();
+        }
+    }
+
+    private String currentComboText(ComboBox<String> combo) {
+        if (combo.isEditable() && combo.getEditor() != null) {
+            String text = combo.getEditor().getText();
+            if (text != null && !text.isBlank()) {
+                return text.trim();
+            }
+        }
+        return combo.getValue();
     }
 
     // VBox 타입 섹션 정의
@@ -319,13 +444,6 @@ public class SettingsView extends BorderPane {
         Label label = new Label(text);
         label.getStyleClass().add("section-title");
         return label;
-    }
-
-private HBox checkRow(String text, boolean selected, Consumer<Boolean> action) {
-        CheckBox check = checkBox(text);
-        check.setSelected(selected);
-        check.setOnAction(event -> action.accept(check.isSelected()));
-        return settingRow("", check, new Label(""));
     }
 
     private CheckBox checkBox(String text) {
@@ -348,23 +466,40 @@ private HBox checkRow(String text, boolean selected, Consumer<Boolean> action) {
         Button key = new Button(bindings.keyFor(action).getName());
         key.getStyleClass().add("key-button");
         key.setOnAction(event -> {
+            capturingAction = action;
+            updateKeyButtons();
             key.setText("...");
-            key.setOnKeyPressed(keyEvent -> captureKey(action, key, keyEvent));
             key.requestFocus();
         });
         keyButtons.put(action, key);
         return key;
     }
 
-    private void captureKey(GameAction action, Button button, KeyEvent event) {
-        if (!(event.getCode() == KeyCode.ESCAPE && event.isShiftDown())) {
-            bindings.bind(action, event.getCode());
-            button.setText(bindings.keyFor(action).getName());
-        } else {
-            button.setText(bindings.keyFor(action).getName());
+    private void handleCapturingKeyPressed(KeyEvent event) {
+        if (capturingAction == null) {
+            return;
         }
-        button.setOnKeyPressed(null);
+        KeyCode code = event.getCode();
+        if (code == KeyCode.UNDEFINED) {
+            event.consume();
+            return;
+        }
+        GameAction target = capturingAction;
+        capturingAction = null;
+        suppressNextKeyRelease = true;
+
+        if (!(code == KeyCode.ESCAPE && event.isShiftDown())) {
+            bindings.bind(target, code);
+        }
+        refreshUi();
         event.consume();
+    }
+
+    private void handleCapturingKeyReleased(KeyEvent event) {
+        if (suppressNextKeyRelease) {
+            suppressNextKeyRelease = false;
+            event.consume();
+        }
     }
 
     private ComboBox<String> presetCombo(boolean keyPreset) {
@@ -384,6 +519,9 @@ private HBox checkRow(String text, boolean selected, Consumer<Boolean> action) {
             }
         });
         combo.setOnAction(event -> {
+            if (syncingUi) {
+                return;
+            }
             if ("추가".equals(combo.getValue())) {
                 combo.getItems().remove("추가");
                 combo.setValue("새 프리셋");
@@ -392,8 +530,6 @@ private HBox checkRow(String text, boolean selected, Consumer<Boolean> action) {
         });
         return combo;
     }
-
-
 
     private boolean saveColorPreset(String selected) {
         try {
@@ -415,7 +551,7 @@ private HBox checkRow(String text, boolean selected, Consumer<Boolean> action) {
             } else {
                 palette.loadPreset(name);
             }
-            drawSamples();
+            refreshUi();
         } catch (IllegalArgumentException e) {
             showMessage("컬러 프리셋 불러오기 실패", e.getMessage());
         }
@@ -440,25 +576,30 @@ private HBox checkRow(String text, boolean selected, Consumer<Boolean> action) {
         }
         if (!name.isBlank()) {
             combo.setValue(name);
+            if (combo.isEditable() && combo.getEditor() != null) {
+                combo.getEditor().setText(name);
+            }
         }
     }
 
     private void loadKeyPreset(String selected) {
         try {
+            capturingAction = null;
             bindings.loadPreset(presetValue(selected));
-            updateKeyButtons();
+            refreshUi();
         } catch (IllegalArgumentException e) {
             showMessage("키 프리셋 불러오기 실패", e.getMessage());
         }
     }
-private void loadScale(String selected) {
+
+    private void loadScale(String selected) {
         try {
             double scale = isBuiltInScale(selected)
                     ? parseScale(selected)
                     : SettingsStore.loadResolutionPreset(presetValue(selected));
             SettingsStore.saveScale(scale);
-            
-            // 크기만 대충 바꾸는 것이 아니라, 화면을 완전히 새로 고침(재생성)하여 반영
+
+            // 창 크기 변경은 화면을 완전히 새로 고침(재생성)하여 반영
             if (onScaleChanged != null) {
                 onScaleChanged.accept(scale);
             }
@@ -466,7 +607,7 @@ private void loadScale(String selected) {
             showMessage("화면 해상도", e.getMessage());
         }
     }
-    
+
     private String presetValue(String value) {
         String name = value == null ? "" : value.trim();
         if (name.isBlank() || "추가".equals(name)) {
@@ -504,6 +645,9 @@ private void loadScale(String selected) {
     }
 
     private ColorblindPreset colorblindPreset(String name) {
+        if (name == null) {
+            return null;
+        }
         return switch (name) {
             case "적록" -> ColorblindPreset.RED_GREEN;
             case "적색" -> ColorblindPreset.PROTAN;
@@ -600,7 +744,7 @@ private void loadScale(String selected) {
         palette.setColor(type, Color.hsb(hue, color.getSaturation(), brightness));
         lastX = event.getX();
         lastY = event.getY();
-        drawSamples();
+        refreshUi();
     }
 
     private int sampleIndexAt(double mouseX, double mouseY) {

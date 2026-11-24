@@ -29,7 +29,10 @@ public class Board{
     private final int height;
     private final Tetromino[][] grid;
     private final Item[][] items;
+    private final int[][] itemGroup;
     private final boolean[][] garbage;
+    private final boolean[][] water;
+    private final long[][] waterStartMs;
 
     // 기본 보드(너비 10, 보이는 20줄 + 버퍼 2줄)
     public Board(){
@@ -45,7 +48,10 @@ public class Board{
         this.height = height;
         this.grid = new Tetromino[height][width];
         this.items = new Item[height][width];
+        this.itemGroup = new int[height][width];
         this.garbage = new boolean[height][width];
+        this.water = new boolean[height][width];
+        this.waterStartMs = new long[height][width];
     }
 
     // 보드의 너비와 높이 반환
@@ -161,10 +167,20 @@ public class Board{
     }
 
     public void setItem(int row, int col, Item item) {
+        setItem(row, col, item, 0);
+    }
+
+    public void setItem(int row, int col, Item item, int groupId) {
         if (!isInside(new Cell(row, col))) {
             throw new IllegalArgumentException("보드 밖의 칸: (" + row + ", " + col + ")");
         }
         items[row][col] = item;
+        itemGroup[row][col] = item == null ? 0 : groupId;
+    }
+
+    public int getItemGroup(int row, int col) {
+        checkInside(row, col);
+        return itemGroup[row][col];
     }
 
     public void fillCell(int row, int col, Tetromino type, Item item) {
@@ -173,6 +189,38 @@ public class Board{
         }
         grid[row][col] = type;
         items[row][col] = item;
+    }
+
+    /** 물 블록으로 칸을 채운다. startAtMs는 화면에서 차오르기 시작할 시각(System.currentTimeMillis 기준). */
+    public void fillWaterCell(int row, int col, Tetromino type, long startAtMs) {
+        if (!isInside(new Cell(row, col)) || grid[row][col] != null) {
+            return;
+        }
+        grid[row][col] = type;
+        items[row][col] = null;
+        water[row][col] = true;
+        waterStartMs[row][col] = startAtMs;
+    }
+
+    public boolean isWater(int row, int col) {
+        checkInside(row, col);
+        return water[row][col];
+    }
+
+    public long getWaterStartMs(int row, int col) {
+        checkInside(row, col);
+        return waterStartMs[row][col];
+    }
+
+    public boolean hasWater() {
+        for (int r = 0; r < height; r++) {
+            for (int c = 0; c < width; c++) {
+                if (water[r][c]) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public void moveItem(int fromRow, int fromCol, int toRow, int toCol) {
@@ -192,7 +240,10 @@ public class Board{
         }
         grid[row][col] = null;
         items[row][col] = null;
+        itemGroup[row][col] = 0;
         garbage[row][col] = false;
+        water[row][col] = false;
+        waterStartMs[row][col] = 0L;
     }
 
     // 블럭의 모든 칸이 보드 안에 있고 비어있으면 true
@@ -275,15 +326,11 @@ public class Board{
             if (removed[read]) {
                 continue;
             }
-            grid[write] = grid[read];
-            items[write] = items[read];
-            garbage[write] = garbage[read];
+            moveRow(write, read);
             write--;
         }
         while (write >= 0) {
-            grid[write] = new Tetromino[width];
-            items[write] = new Item[width];
-            garbage[write] = new boolean[width];
+            resetRow(write);
             write--;
         }
     }
@@ -295,18 +342,24 @@ public class Board{
         }
     }
 
-    // from행의 내용(블럭, 아이템, 공격 줄 표시)을 to행으로 옮긴다. from행은 따로 비우거나 덮어써야 한다
+    // from행의 내용(블럭, 아이템, 공격 줄, 물 표시)을 to행으로 옮긴다. from행은 따로 비우거나 덮어써야 한다
     private void moveRow(int to, int from) {
         grid[to] = grid[from];
         items[to] = items[from];
+        itemGroup[to] = itemGroup[from];
         garbage[to] = garbage[from];
+        water[to] = water[from];
+        waterStartMs[to] = waterStartMs[from];
     }
 
     // row행을 새 빈 줄로 만든다 (다른 줄과 배열을 공유하지 않도록 항상 새로 만든다)
     private void resetRow(int row) {
         grid[row] = new Tetromino[width];
         items[row] = new Item[width];
+        itemGroup[row] = new int[width];
         garbage[row] = new boolean[width];
+        water[row] = new boolean[width];
+        waterStartMs[row] = new long[width];
     }
 
     private boolean isRowFull(int row) {
