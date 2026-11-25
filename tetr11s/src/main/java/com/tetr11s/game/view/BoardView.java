@@ -56,18 +56,32 @@ public class BoardView extends Canvas {
     */
     public void render(GameManager game, boolean flashOn) {
         Board board = game.getBoard();
+        long nowMs = System.currentTimeMillis();
         clear();
+
+        java.util.List<ItemGameManager.MeteorFragment> activeFragments = (game instanceof ItemGameManager itemGame)
+                ? itemGame.getActiveMeteorFragments(nowMs)
+                : java.util.List.of();
+        java.util.Set<Cell> hiddenTargets = new java.util.HashSet<>();
+        for (ItemGameManager.MeteorFragment f : activeFragments) {
+            hiddenTargets.add(f.to());
+        }
 
         // 1. 쌓인 블럭 (버퍼 줄은 건너뜀)
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
-                Tetromino type = board.get(r + Board.BUFFER_ROWS, c);
-                if (type == null) {
+                int boardRow = r + Board.BUFFER_ROWS;
+                Tetromino type = board.get(boardRow, c);
+                if (type == null || hiddenTargets.contains(new Cell(boardRow, c))) {
                     set(r, c, EMPTY, BACKGROUND_COLOR, null);
+                } else if (board.isWater(boardRow, c)) {
+                    boolean waterAbove = boardRow > 0 && board.isWater(boardRow - 1, c)
+                            && (nowMs - board.getWaterStartMs(boardRow - 1, c)) >= 260L;
+                    drawWaterCell(r, c, board.getWaterStartMs(boardRow, c), nowMs, waterAbove);
                 } else {
                     set(r, c, palette.getSymbol(type), palette.getColor(type), type);
                 }
-                Item item = board.getItem(r + Board.BUFFER_ROWS, c);
+                Item item = board.getItem(boardRow, c);
                 if (item != null) {
                     drawItem(r, c, item);
                 }
@@ -88,24 +102,32 @@ public class BoardView extends Canvas {
         }
 
         Block current = game.getCurrent();
-        if (current == null) {
-            return;
-        }
+        if (current != null) {
+            // 2. 고스트 (게임 중일 때만)
+            if (!game.isGameOver()) {
+                Color color = palette.getColor(current.type());
+                for (Cell cell : game.getGhost().cells()) {
+                    draw(cell, GHOST, color, current.type());
+                }
+            }
 
-        // 2. 고스트 (게임 중일 때만)
-        if (!game.isGameOver()) {
-            Color color = palette.getColor(current.type());
-            for (Cell cell : game.getGhost().cells()) {
-                draw(cell, GHOST, color, current.type());
+            // 3. 현재 블럭
+            for (Cell cell : current.cells()) {
+                draw(cell, palette.getSymbol(current.type()), palette.getColor(current.type()), current.type());
+                if (game instanceof ItemGameManager itemGame && itemGame.getCurrentItem() != null
+                        && itemGame.getCurrentItemCells().contains(cell)) {
+                    drawItem(cell.row() - Board.BUFFER_ROWS, cell.col(), itemGame.getCurrentItem());
+                }
             }
         }
 
-        // 3. 현재 블럭
-        for (Cell cell : current.cells()) {
-            draw(cell, palette.getSymbol(current.type()), palette.getColor(current.type()), current.type());
-            if (game instanceof ItemGameManager itemGame && itemGame.getCurrentItem() != null
-                    && itemGame.getCurrentItemCells().contains(cell)) {
-                drawItem(cell.row() - Board.BUFFER_ROWS, cell.col(), itemGame.getCurrentItem());
+        // 4. 메테오 대각선 비산 파편 및 수소폭탄 폭발 연출
+        for (ItemGameManager.MeteorFragment f : activeFragments) {
+            drawMeteorFragment(f, nowMs);
+        }
+        if (game instanceof ItemGameManager itemGame) {
+            for (ItemGameManager.ExplosionEffect e : itemGame.getActiveExplosions(nowMs)) {
+                drawExplosion(e, nowMs);
             }
         }
     }
@@ -171,7 +193,129 @@ public class BoardView extends Canvas {
         graphics.strokeRect(x, y, size, size);
     }
 
+    /** 바닥에서 위로 차오르며 윗면이 찰랑거리는 물 블록을 그린다. */
+    private void drawWaterCell(int r, int c, long startMs, long nowMs, boolean waterAbove) {
+        set(r, c, EMPTY, BACKGROUND_COLOR, null);
+
+        long elapsed = nowMs - startMs;
+        if (elapsed <= 0) {
+            return;
+        }
+
+        double progress = Math.min(1.0, elapsed / 260.0);
+        double x = PADDING + c * CELL_SIZE;
+        double y = PADDING + r * CELL_SIZE;
+        double size = CELL_SIZE - CELL_GAP;
+
+        double waterHeight = size * progress;
+        double baseTopY = y + size - waterHeight;
+        double waveAmp = (waterAbove && progress >= 1.0) ? 0.6 : 2.2;
+
+        int segments = 8;
+        double[] xs = new double[segments + 3];
+        double[] ys = new double[segments + 3];
+        double phase = nowMs * 0.008 + c * 1.4 + r * 0.6;
+
+        for (int i = 0; i <= segments; i++) {
+            double t = (double) i / segments;
+            double px = x + t * size;
+            double wave = Math.sin(phase + t * Math.PI * 2.0) * waveAmp;
+            double py = Math.max(y, Math.min(y + size, baseTopY + wave));
+            xs[i] = px;
+            ys[i] = py;
+        }
+        xs[segments + 1] = x + size;
+        ys[segments + 1] = y + size;
+        xs[segments + 2] = x;
+        ys[segments + 2] = y + size;
+
+        graphics.setFill(new javafx.scene.paint.LinearGradient(
+                0, baseTopY, 0, y + size, false, javafx.scene.paint.CycleMethod.NO_CYCLE,
+                new javafx.scene.paint.Stop(0, Color.rgb(120, 220, 255, 0.88)),
+                new javafx.scene.paint.Stop(1, Color.rgb(25, 115, 220, 0.92))));
+        graphics.fillPolygon(xs, ys, segments + 3);
+
+        if (!waterAbove || progress < 1.0) {
+            graphics.setStroke(Color.rgb(220, 248, 255, 0.9));
+            graphics.setLineWidth(1.5);
+            graphics.strokePolyline(
+                    java.util.Arrays.copyOf(xs, segments + 1),
+                    java.util.Arrays.copyOf(ys, segments + 1),
+                    segments + 1);
+        }
+        graphics.setStroke(GRID_COLOR);
+        graphics.setLineWidth(1);
+        graphics.strokeRect(x, y, size, size);
+    }
+
+    /** 메테오 파편을 from -> peak(대각선) -> to(낙하) 경로로 그린다. */
+    private void drawMeteorFragment(ItemGameManager.MeteorFragment f, long nowMs) {
+        double progress = Math.max(0.0, Math.min(1.0,
+                (double) (nowMs - f.startMs()) / ItemGameManager.METEOR_SCATTER_DURATION_MS));
+        double curRow;
+        double curCol;
+        if (progress < 0.45) {
+            double t = progress / 0.45;
+            curRow = f.from().row() + (f.peak().row() - f.from().row()) * t;
+            curCol = f.from().col() + (f.peak().col() - f.from().col()) * t;
+        } else {
+            double t = (progress - 0.45) / 0.55;
+            curRow = f.peak().row() + (f.to().row() - f.peak().row()) * t * t;
+            curCol = f.peak().col() + (f.to().col() - f.peak().col()) * t;
+        }
+
+        double visRow = curRow - Board.BUFFER_ROWS;
+        if (visRow < -1 || visRow >= rows || curCol < 0 || curCol >= cols) {
+            return;
+        }
+        double x = PADDING + curCol * CELL_SIZE;
+        double y = PADDING + visRow * CELL_SIZE;
+        double size = CELL_SIZE - CELL_GAP;
+        Color color = palette.getColor(f.type());
+
+        graphics.setFill(color);
+        graphics.fillRect(x, y, size, size);
+        if (f.item() != null) {
+            Color itemColor = switch (f.item()) {
+                case L -> Color.DODGERBLUE;
+                case W -> Color.DIMGRAY;
+                case H -> Color.WHITE;
+                case O -> Color.LIGHTBLUE;
+                case M -> Color.RED;
+            };
+            graphics.setFill(itemColor.deriveColor(0, 1, 1, 0.85));
+            graphics.fillRect(x, y, size, size);
+            graphics.setFill(Color.BLACK);
+            graphics.setFont(javafx.scene.text.Font.font("Monospaced", javafx.scene.text.FontWeight.BOLD, 14));
+            graphics.fillText(f.item().name(), x + 9, y + 19);
+        }
+        graphics.setStroke(Color.WHITE);
+        graphics.setLineWidth(1.2);
+        graphics.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
+    }
+
+    /** 수소폭탄(H2) 3x3 폭발을 원형 섬광으로 그린다. */
+    private void drawExplosion(ItemGameManager.ExplosionEffect e, long nowMs) {
+        double progress = Math.max(0.0, Math.min(1.0,
+                (double) (nowMs - e.startMs()) / ItemGameManager.EXPLOSION_DURATION_MS));
+        double visRow = e.row() - Board.BUFFER_ROWS;
+        double cx = PADDING + (e.col() + 0.5) * CELL_SIZE;
+        double cy = PADDING + (visRow + 0.5) * CELL_SIZE;
+        double radius = CELL_SIZE * (0.6 + progress * 1.4);
+        double alpha = 1.0 - progress;
+
+        graphics.setFill(new javafx.scene.paint.RadialGradient(
+                0, 0, cx, cy, radius, false, javafx.scene.paint.CycleMethod.NO_CYCLE,
+                new javafx.scene.paint.Stop(0.0, Color.rgb(255, 255, 240, alpha)),
+                new javafx.scene.paint.Stop(0.5, Color.rgb(255, 190, 50, alpha * 0.85)),
+                new javafx.scene.paint.Stop(1.0, Color.rgb(255, 60, 20, 0.0))));
+        graphics.fillOval(cx - radius, cy - radius, radius * 2, radius * 2);
+    }
+
     private void drawItem(int r, int c, Item item) {
+        if (r < 0 || r >= rows || c < 0 || c >= cols) {
+            return;
+        } // 버퍼 행 범위 가드
         double x = PADDING + c * CELL_SIZE;
         double y = PADDING + r * CELL_SIZE;
         double size = CELL_SIZE - CELL_GAP;
@@ -194,7 +338,7 @@ public class BoardView extends Canvas {
         graphics.fillRect(x, y, size, size);
         graphics.setFill(Color.BLACK);
         graphics.setFont(javafx.scene.text.Font.font("Monospaced", javafx.scene.text.FontWeight.BOLD, 14));
-        graphics.fillText(item.name(), x + 7, y + 12);
+        graphics.fillText(item.name(), x + 9, y + 19);
     }
 
 }

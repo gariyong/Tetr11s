@@ -29,20 +29,45 @@ public class NextBlockView extends Canvas {
     }
 
     public void render(Tetromino next) {
-        render(next, null);
+        render(next, null, java.util.List.of());
     }
 
     public void render(Tetromino next, Item item) {
+        render(next, item, java.util.List.of());
+    }
+
+    public void render(Tetromino next, Item item, java.util.List<Integer> itemIndices) {
         clear();
+        if (item == Item.M) {
+            drawItem(new Cell(1, 1), Item.M);
+            return;
+        }
+        if (item == Item.W) {
+            for (Cell c : java.util.List.of(
+                    new Cell(1, 1), new Cell(1, 2),
+                    new Cell(2, 0), new Cell(2, 1), new Cell(2, 2), new Cell(2, 3))) {
+                drawItem(c, Item.W);
+            }
+            return;
+        }
         if (next == null) {
             return;
         }
 
-        for (Cell c : next.cells(0)) {
+        java.util.List<Cell> cells = next.cells(0);
+        for (Cell c : cells) {
             draw(c, next);
         }
-        if (item != null && !next.cells(0).isEmpty()) {
-            drawItem(next.cells(0).get(0), item);
+        if (item != null && !cells.isEmpty()) {
+            if (itemIndices != null && !itemIndices.isEmpty()) {
+                for (int idx : itemIndices) {
+                    if (idx >= 0 && idx < cells.size()) {
+                        drawItem(cells.get(idx), item);
+                    }
+                }
+            } else {
+                drawItem(cells.get(0), item);
+            }
         }
     }
 
@@ -50,11 +75,26 @@ public class NextBlockView extends Canvas {
         double x = PADDING + cell.col() * BoardView.CELL_SIZE;
         double y = PADDING + cell.row() * BoardView.CELL_SIZE;
         double size = BoardView.CELL_SIZE - CELL_GAP;
-        graphics.setFill(item == Item.W ? Color.DARKSLATEGRAY : Color.RED);
+        Color color = switch (item) {
+            case L -> Color.DODGERBLUE;
+            case W -> Color.DIMGRAY;
+            case H -> Color.WHITE;
+            case O -> Color.LIGHTBLUE;
+            case M -> Color.RED;
+        };
+        if (item == Item.M) {
+            graphics.setFill(new javafx.scene.paint.RadialGradient(0, 0, x + size / 2, y + size / 2,
+                    size / 2, false, javafx.scene.paint.CycleMethod.NO_CYCLE,
+                    new javafx.scene.paint.Stop(0, Color.WHITE),
+                    new javafx.scene.paint.Stop(0.45, Color.YELLOW),
+                    new javafx.scene.paint.Stop(1, Color.RED)));
+        } else {
+            graphics.setFill(color.deriveColor(0, 1, 1, 0.85));
+        }
         graphics.fillRect(x, y, size, size);
-        graphics.setFill(Color.WHITE);
+        graphics.setFill(Color.BLACK);
         graphics.setFont(javafx.scene.text.Font.font("Monospaced", javafx.scene.text.FontWeight.BOLD, 14));
-        graphics.fillText(item.name(), x + 7, y + 12);
+        graphics.fillText(item.name(), x + 9, y + 19);
     }
 
     // 다음 블럭 표시할 땐 블럭만 보이도록 그리드를 지움

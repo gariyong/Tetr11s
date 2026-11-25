@@ -79,7 +79,16 @@ public class GameView extends HBox {
     /** 게임 상태를 읽어서 화면 전체를 다시 그린다. */
     public void refresh() {
         boardView.render(game, lineClearFlash);
-        nextView.render(game.getNext(), game.getNextItemType());
+        if (game instanceof com.tetr11s.game.ItemGameManager itemGame) {
+            nextView.render(game.getNext(), game.getNextItemType(), itemGame.getNextItemIndices());
+            double[] shake = itemGame.getShakeOffset(System.currentTimeMillis());
+            setTranslateX(shake[0]);
+            setTranslateY(shake[1]);
+        } else {
+            nextView.render(game.getNext(), game.getNextItemType());
+            setTranslateX(0);
+            setTranslateY(0);
+        }
 
         scoreValue.setText(String.valueOf(game.getScore()));
         levelValue.setText(String.valueOf(game.getLevel()));
