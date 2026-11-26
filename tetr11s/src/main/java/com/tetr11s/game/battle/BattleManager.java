@@ -38,6 +38,7 @@ public class BattleManager {
     private long elapsedMs;
     private BattleResult result;   // 아직 안 끝났으면 null
 
+
     /**
      * 같은 seed로 두 플레이어를 만든다.
      *
@@ -115,23 +116,30 @@ public class BattleManager {
     private BattleResult judge() {
         boolean over1 = player1.isGameOver();
         boolean over2 = player2.isGameOver();
-        if (over1 && over2) {
+        if (mode == BattleMode.TIME_LIMIT && elapsedMs >= timeLimitMs) {
+            return byScore(player1.getScore(), player2.getScore());
+        }
+        return byGameOver(over1, over2);
+    }
+
+
+    /** 게임오버로 승패를 판정한다. 아무도 게임오버가 아니면 null */
+    public static BattleResult byGameOver(boolean player1Over, boolean player2Over) {
+        if (player1Over && player2Over) {
             return BattleResult.DRAW;
         }
-        if (over1) {
+        if (player1Over) {
             return BattleResult.PLAYER2_WIN;
         }
-        if (over2) {
+        if (player2Over) {
             return BattleResult.PLAYER1_WIN;
-        }
-        if (mode == BattleMode.TIME_LIMIT && elapsedMs >= timeLimitMs) {
-            return byScore();
         }
         return null;
     }
 
-    private BattleResult byScore() {
-        int compare = Integer.compare(player1.getScore(), player2.getScore());
+    /** 시간이 끝났을 때 점수로 판정한다 */
+    public static BattleResult byScore(int player1Score, int player2Score) {
+        int compare = Integer.compare(player1Score, player2Score);
         if (compare > 0) {
             return BattleResult.PLAYER1_WIN;
         }
@@ -172,4 +180,5 @@ public class BattleManager {
         }
         return Math.max(0, timeLimitMs - elapsedMs);
     }
+
 }
