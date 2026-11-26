@@ -30,7 +30,7 @@ public class ItemGameManager extends GameManager {
     public static final long WATER_RISE_DURATION_MS = 260L;
     public static final long METEOR_SCATTER_DURATION_MS = 320L;
     public static final long EXPLOSION_DURATION_MS = 280L;
-    public static final long SCREEN_SHAKE_DURATION_MS = 280L;
+    public static final long SCREEN_SHAKE_DURATION_MS = 360L;
 
     /** 메테오 충돌 후 대각선으로 비산하는 파편 연출용 정보 (H/O는 아이템 표시까지 유지) */
     public record MeteorFragment(Cell from, Cell peak, Cell to, Tetromino type, Item item, long startMs) {
@@ -588,8 +588,8 @@ public class ItemGameManager extends GameManager {
         // 4. 비산되어 착지한 H/O가 다른 H/O와 새로 접했으면 연쇄 화학 반응 처리
         landedCells.addAll(resolveBoardChemistry());
 
-        // 5. 메테오 충격 화면 흔들림 발동
-        triggerScreenShake(8.0, now);
+        // 5. 메테오 충격 화면 흔들림 발동 (강도 11px)
+        triggerScreenShake(11.0, now);
         return landedCells;
     }
 
