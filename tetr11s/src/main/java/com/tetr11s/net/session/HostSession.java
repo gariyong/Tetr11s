@@ -5,6 +5,7 @@ import java.util.Random;
 import java.util.concurrent.Executor;
 
 import com.tetr11s.game.Difficulty;
+import com.tetr11s.game.battle.BattleManager;
 import com.tetr11s.game.battle.BattleMode;
 import com.tetr11s.game.battle.BattleResult;
 import com.tetr11s.net.Connection;
@@ -161,7 +162,7 @@ public final class HostSession extends Session {
         }
         if (!judging) {
             judging = true;
-            later(settings.drawWindowMs(), () -> finish(BattleJudge.byGameOver(hostOver, guestOver)));
+            later(settings.drawWindowMs(), () -> finish(BattleManager.byGameOver(hostOver, guestOver)));
         }
     }
 
@@ -183,7 +184,7 @@ public final class HostSession extends Session {
 
     private void finishIfScored() {
         if (hostFinalScore != null && guestFinalScore != null) {
-            finish(BattleJudge.byScore(hostFinalScore, guestFinalScore));
+            finish(BattleManager.byScore(hostFinalScore, guestFinalScore));
         }
     }
 

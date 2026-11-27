@@ -1,15 +1,14 @@
 package com.tetr11s.game.battle;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
 
 import com.tetr11s.game.Board;
@@ -284,5 +283,24 @@ class BattleManagerTest {
         assertEquals("일반", BattleMode.NORMAL.displayName());
         assertEquals("아이템", BattleMode.ITEM.displayName());
         assertEquals("시간제한", BattleMode.TIME_LIMIT.displayName());
+    }
+
+    @Test
+    void 한쪽만_게임오버면_상대가_이긴다() {
+        assertEquals(BattleResult.PLAYER2_WIN, BattleManager.byGameOver(true, false));
+        assertEquals(BattleResult.PLAYER1_WIN, BattleManager.byGameOver(false, true));
+    }
+
+    @Test
+    void 둘_다_게임오버면_무승부이고_아무도_아니면_아직_모른다() {
+        assertEquals(BattleResult.DRAW, BattleManager.byGameOver(true, true));
+        assertNull(BattleManager.byGameOver(false, false));
+    }
+
+    @Test
+    void 시간이_끝나면_점수가_높은_쪽이_이기고_같으면_무승부다() {
+        assertEquals(BattleResult.PLAYER1_WIN, BattleManager.byScore(500, 300));
+        assertEquals(BattleResult.PLAYER2_WIN, BattleManager.byScore(300, 500));
+        assertEquals(BattleResult.DRAW, BattleManager.byScore(400, 400));
     }
 }
