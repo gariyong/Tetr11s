@@ -22,6 +22,7 @@ import javafx.scene.paint.Color;
 public final class SettingsStore {
     private static final String FILE_NAME = "save.properties";
     private static final String ACTIVE_KEY_PREFIX = "active.key.";
+    private static final String BATTLE_KEY_PREFIX = "active.battle.p";
     private static final String KEY_PRESET_PREFIX = "preset.";
     private static final String COLOR_PRESET_PREFIX = "preset.";
     private static final String DIFFICULTY_KEY = "active.difficulty";
@@ -42,8 +43,9 @@ public final class SettingsStore {
         }
         try (InputStream input = Files.newInputStream(path())) {
             properties.load(input);
-        } catch (IOException e) {
+        } catch (IOException | IllegalArgumentException e) {
             System.err.println("설정 파일을 읽을 수 없습니다: " + e.getMessage());
+            return new Properties();
         }
         return properties;
     }
@@ -51,8 +53,12 @@ public final class SettingsStore {
     // Properties를 파일로 저장하는 메서드
     public static void save(Properties properties) {
         try {
-            Files.createDirectories(path().getParent());
-            try (OutputStream output = Files.newOutputStream(path())) {
+            Path target = path();
+            Path parent = target.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            try (OutputStream output = Files.newOutputStream(target)) {
                 properties.store(output, "Tetr11s settings and presets");
             }
         } catch (IOException e) {
@@ -71,6 +77,14 @@ public final class SettingsStore {
     // 게임 액션별로 저장된 키를 가져오는 메서드
     public static String activeKey(GameAction action) {
         return ACTIVE_KEY_PREFIX + action.name();
+    }
+
+    // 로컬 대전 플레이어(1, 2)와 게임 액션별로 저장된 키를 가져오는 메서드
+    public static String battleActiveKey(int player, GameAction action) {
+        if (player != 1 && player != 2) {
+            throw new IllegalArgumentException("플레이어 번호는 1 또는 2여야 합니다: " + player);
+        }
+        return BATTLE_KEY_PREFIX + player + ".key." + action.name();
     }
 
     // 프리셋 이름과 게임 액션별로 저장된 키를 가져오는 메서드

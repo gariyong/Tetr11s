@@ -139,7 +139,9 @@ public record BoardSnapshot(
         return (clearingRows & (1 << row)) != 0;
     }
 
-    /** 받아서 대기 중인 공격 줄 (위에서 아래 순서) */
+    /** 받아서 대기 중인 공격 줄 (위에서 아래 순서)
+     * 스냅샷의 String incoming을 List<> 객체로
+     */
     public List<GarbageLine> incomingGarbage() {
         return GarbageCodec.decode(incoming);
     }

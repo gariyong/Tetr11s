@@ -12,7 +12,7 @@ import javafx.scene.Scene;
  * GameScreen 을 만들어, ScreenManager 애서 호출할 수 있도록 한다
  * 기존 TetrisApp에서 만들던 객체들을 여기서 생성한다
  */
-public class GameScreen {
+public class GameScreen implements ActiveScreen {
 
     // 겜뷰를 게임스크린에서 받음 
     private final GameController controller;

@@ -23,6 +23,7 @@ public class Board{
     public static final int VISIBLE_HEIGHT = 20;
     public static final int BUFFER_ROWS = 2;
     public static final int HEIGHT = VISIBLE_HEIGHT + BUFFER_ROWS;
+    // todo: 가비지 플레이스홀더 지금 I임
     public static final Tetromino GARBAGE_PLACEHOLDER = Tetromino.I;
 
     private final int width;

@@ -30,6 +30,7 @@ public class BoardView extends Canvas {
     private static final Color BACKGROUND_COLOR = Color.rgb(17, 17, 17);
     private static final Color BORDER_COLOR = Color.rgb(136, 136, 136);
     private static final Color GRID_COLOR = Color.rgb(45, 45, 45);
+    private static final Color GARBAGE_COLOR = Color.rgb(120, 120, 120);;
     private static final double CELL_GAP = 1;
     private static final double PADDING = 2;
 
@@ -71,6 +72,8 @@ public class BoardView extends Canvas {
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
                 int boardRow = r + Board.BUFFER_ROWS;
+
+                // 빈칸처리, 물블럭 처리, 가비지 블럭 처리, 일반블럭 처리 분기
                 Tetromino type = board.get(boardRow, c);
                 if (type == null || hiddenTargets.contains(new Cell(boardRow, c))) {
                     set(r, c, EMPTY, BACKGROUND_COLOR, null);
@@ -78,6 +81,8 @@ public class BoardView extends Canvas {
                     boolean waterAbove = boardRow > 0 && board.isWater(boardRow - 1, c)
                             && (nowMs - board.getWaterStartMs(boardRow - 1, c)) >= 260L;
                     drawWaterCell(r, c, board.getWaterStartMs(boardRow, c), nowMs, waterAbove);
+                } else if (board.isGarbage(boardRow, c)) {
+                    set(r, c, palette.getSymbol(type), GARBAGE_COLOR, null);
                 } else {
                     set(r, c, palette.getSymbol(type), palette.getColor(type), type);
                 }

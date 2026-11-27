@@ -142,4 +142,22 @@ class ScoreStoreTest {
 
         store.delete();   // 이미 없는 파일을 다시 지워도 예외 없음
     }
+
+    @Test
+    void 일반모드와_아이템모드_기록이_같은_파일에_서로_안덮어쓰고_저장된다() {
+        ScoreStore normalStore = new ScoreStore(file, false);
+        ScoreStore itemStore = new ScoreStore(file, true);
+
+        normalStore.save(Difficulty.NORMAL, boardOf("일반왕", "1500"));
+        itemStore.save(Difficulty.NORMAL, boardOf("템전왕", "3200"));
+        normalStore.save(Difficulty.HARD, boardOf("하드왕", "2800"));
+
+        assertEquals(List.of("일반왕"), names(new ScoreStore(file, false).load(Difficulty.NORMAL)));
+        assertEquals(List.of("하드왕"), names(new ScoreStore(file, false).load(Difficulty.HARD)));
+        assertEquals(List.of("템전왕"), names(new ScoreStore(file, true).load(Difficulty.NORMAL)));
+
+        normalStore.delete();
+        assertTrue(new ScoreStore(file, false).load(Difficulty.NORMAL).entries().isEmpty());
+        assertTrue(new ScoreStore(file, true).load(Difficulty.NORMAL).entries().isEmpty());
+    }
 }

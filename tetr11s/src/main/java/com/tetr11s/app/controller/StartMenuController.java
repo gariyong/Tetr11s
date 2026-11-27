@@ -29,6 +29,7 @@ public class StartMenuController {
     private final MenuModel menu = new MenuModel(List.of(
             new MenuEntry("게임 시작", () -> screenManager.showGame(false)),
             new MenuEntry("아이템전 시작", () -> screenManager.showGame(true)),
+            new MenuEntry("대전 모드", this::openBattleModeMenu),
             new MenuEntry("설정", this::openSettings),
             new MenuEntry("스코어보드", this::openScoreboard),
             new MenuEntry("게임 종료", this::exitGame)
@@ -95,6 +96,14 @@ public class StartMenuController {
             menuBox.getChildren().get(i).pseudoClassStateChanged(SELECTED, i == menu.selectedIndex());
         }
         messageLabel.setText("");
+    }
+
+    private void openBattleModeMenu() {
+        try {
+            screenManager.showBattleModeMenu();
+        } catch (IOException e) {
+            throw new RuntimeException("대전 모드 선택 화면을 열 수 없습니다.", e);
+        }
     }
 
     private void openSettings() {
