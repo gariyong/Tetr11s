@@ -4,14 +4,22 @@ import java.io.IOException;
 import java.util.EnumMap;
 import java.util.Map;
 
+import com.tetr11s.app.controller.BattleModeController;
 import com.tetr11s.app.controller.NameInputController;
 import com.tetr11s.app.controller.ScoreBoardController;
 import com.tetr11s.app.controller.StartMenuController;
+import com.tetr11s.game.ActiveScreen;
+import com.tetr11s.game.BattleScreen;
 import com.tetr11s.game.Difficulty;
 import com.tetr11s.game.GameManager;
 import com.tetr11s.game.GameScreen;
 import com.tetr11s.game.ItemGameManager;
+import com.tetr11s.game.battle.BattleManager;
+import com.tetr11s.game.battle.BattleMode;
+import com.tetr11s.game.controller.BattleController;
+import com.tetr11s.game.controller.BattleKeyBindings;
 import com.tetr11s.game.controller.GameController;
+import com.tetr11s.game.view.BattleView;
 import com.tetr11s.game.view.GameView;
 import com.tetr11s.score.ScoreBoard;
 import com.tetr11s.score.ScoreEntry;
@@ -48,7 +56,7 @@ public class ScreenManager {
     private final Stage stage;
     private final ScoreStore scoreStore = new ScoreStore(false);
     private final ScoreStore itemScoreStore = new ScoreStore(true);
-    private GameScreen currentScreen;
+    private ActiveScreen currentScreen;
     private ChangeListener<Boolean> focusListener; 
 
     // 현재 화면의 루트와 전달받는 게임뷰로 group과 stackpane를 만들어, 화면 크기 조절 시 scale 변환을 적용할 수 있게 할거임
@@ -204,6 +212,61 @@ public class ScreenManager {
         screen.attachToScene(gameScene);
         currentScreen.start();
     }
+
+    /** 로컬 2인 대전 모드 선택 화면(일반 / 아이템 / 시간제한)을 표시한다. */
+    public void showBattleModeMenu() throws IOException {
+        stopCurrentGame();
+
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/battle_mode.fxml"));
+        Parent root = loader.load();
+
+        BattleModeController controller = loader.getController();
+        controller.setScreenManager(this);
+
+        stage.setTitle("Tetr11s - 대전 모드");
+        mountScene(root, MENU_BASE_WIDTH, MENU_BASE_HEIGHT);
+    }
+
+    /**
+     * 선택한 모드로 로컬 2인 대전을 시작한다.
+     * 대전 종료 시 스코어보드에 기록하지 않고 바로 시작 메뉴로 돌아간다.
+     */
+    public void showBattle(BattleMode mode) {
+        stopCurrentGame();
+
+        Difficulty difficulty = SettingsStore.loadDifficulty();
+        BattleManager battle = BattleManager.create(mode, difficulty);
+        BattleKeyBindings bindings = new BattleKeyBindings();
+        BattleView view = new BattleView(battle, new DefaultPalette(), bindings);
+
+        BattleController controller = new BattleController(
+                battle,
+                view,
+                bindings,
+                () -> {
+                    try {
+                        showStartMenu();
+                    } catch (IOException e) {
+                        throw new RuntimeException("시작 메뉴를 열 수 없습니다.", e);
+                    }
+                },
+                () -> showBattle(mode));
+
+        BattleScreen screen = new BattleScreen(controller, view);
+        focusListener = (obs, wasFocused, isFocused) -> {
+            if (!isFocused) {
+                screen.releaseAllKeys();
+            }
+        };
+        stage.focusedProperty().addListener(focusListener);
+
+        currentScreen = screen;
+        stage.setTitle("Tetr11s - 대전 (" + mode.displayName() + ")");
+
+        Scene battleScene = mountScene(screen.view(), BattleView.BASE_WIDTH, BattleView.BASE_HEIGHT);
+        screen.attachToScene(battleScene);
+        currentScreen.start();
+    }
     // 설정화면뷰를 씬에 연결한다
     public void showSettings() {
         stopCurrentGame();
@@ -211,6 +274,7 @@ public class ScreenManager {
         SettingsView view = new SettingsView(
                 new DefaultPalette(),
                 new KeyBindings(),
+                new BattleKeyBindings(),
                 () -> {
                     try {
                         showStartMenu();
@@ -303,7 +367,9 @@ public class ScreenManager {
         applyStageSize(targetW, targetH);
         stage.show();
 
-        Platform.runLater(content::requestFocus);
+        if (content.isFocusTraversable()) {
+            Platform.runLater(content::requestFocus);
+        }
         return scene;
     }
     

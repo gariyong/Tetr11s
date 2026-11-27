@@ -57,6 +57,7 @@ public class ScoreBoardController {
     private boolean itemMode;
     private Difficulty shown;               // 지금 보고 있는 난이도
     private Difficulty highlightDifficulty; // 방금 기록이 들어간 난이도
+    private boolean highlightItemMode;      // 방금 기록이 들어간 모드 (일반 vs 아이템)
     private int highlightRank = NO_HIGHLIGHT;
 
     // 이전 화면에서 누르고 있던 키가 이 화면에 들어오는 것을 막는다 (아래 onKeyReleased 참고)
@@ -86,6 +87,7 @@ public class ScoreBoardController {
         this.itemBoards = itemBoards;
         this.itemMode = itemMode;
         this.highlightDifficulty = difficulty;
+        this.highlightItemMode = itemMode;
         this.highlightRank = highlightRank;
         this.onMenu = onMenu;
 
@@ -151,7 +153,8 @@ public class ScoreBoardController {
 
         Map<Difficulty, ScoreBoard> selectedBoards = itemMode ? itemBoards : boards;
         List<ScoreEntry> entries = selectedBoards.getOrDefault(difficulty, new ScoreBoard()).entries();
-        int highlight = (difficulty == highlightDifficulty) ? highlightRank : NO_HIGHLIGHT;
+        int highlight = (difficulty == highlightDifficulty && itemMode == highlightItemMode)
+                ? highlightRank : NO_HIGHLIGHT;
 
         rowBox.getChildren().clear();
         for (int rank = 0; rank < ScoreBoard.CAPACITY; rank++) {

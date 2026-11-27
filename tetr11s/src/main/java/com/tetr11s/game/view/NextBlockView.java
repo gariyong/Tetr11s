@@ -36,6 +36,7 @@ public class NextBlockView extends Canvas {
         render(next, item, java.util.List.of());
     }
 
+    // 렌더
     public void render(Tetromino next, Item item, java.util.List<Integer> itemIndices) {
         clear();
         if (item == Item.M) {

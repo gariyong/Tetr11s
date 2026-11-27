@@ -111,7 +111,10 @@ public class ScoreStore {
 
     private void write(Properties properties) {
         try {
-            Files.createDirectories(path.getParent());
+            Path parent = path.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
             try (OutputStream output = Files.newOutputStream(path)) {
                 properties.store(output, "Tetr11s scoreboard");
             }

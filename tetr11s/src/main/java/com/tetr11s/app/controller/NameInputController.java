@@ -45,7 +45,7 @@ public class NameInputController {
         // 화면에 올라가자마자 바로 입력할 수 있게 입력 칸에 포커스를 준다
         nameField.sceneProperty().addListener((observable, oldScene, newScene) -> {
             if (newScene != null) {
-                nameField.requestFocus();
+                javafx.application.Platform.runLater(nameField::requestFocus);
             }
         });
     }

@@ -69,7 +69,7 @@ public class GarbageQueue {
      * 대기 중인 줄을 모두 꺼내고 대기열을 비운다.
      * 플레이어가 현재 블럭을 처리한 뒤, 다음 블럭이 생성되기 전에 호출한다.
      *
-     * @return 꺼낸 줄들 (위에서 아래 순서). 비어 있으면 빈 리스트.
+     * @return 줄들 꺼내고 비움(위에서 아래 순서). 비어 있으면 빈 리스트.
      */
     public List<GarbageLine> takeAll() {
         List<GarbageLine> result = List.copyOf(lines);
