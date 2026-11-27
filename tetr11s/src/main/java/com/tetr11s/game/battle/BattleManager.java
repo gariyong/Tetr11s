@@ -116,10 +116,11 @@ public class BattleManager {
     private BattleResult judge() {
         boolean over1 = player1.isGameOver();
         boolean over2 = player2.isGameOver();
-        if (mode == BattleMode.TIME_LIMIT && elapsedMs >= timeLimitMs) {
+        if(mode != BattleMode.TIME_LIMIT) return byGameOver(over1, over2);
+        else if (elapsedMs >= timeLimitMs) {
             return byScore(player1.getScore(), player2.getScore());
         }
-        return byGameOver(over1, over2);
+        return null;
     }
 
 
