@@ -152,6 +152,14 @@ public class PlayerRunner {
             case MOVE_RIGHT -> game.moveRight();
             case SOFT_DROP -> game.softDrop();
             case ROTATE_CW -> game.rotateClockwise();
+            case HOLD -> {
+                // 새 블럭이 나오므로 자동 낙하 시간을 처음부터 다시 센다
+                boolean held = game.hold();
+                if (held) {
+                    lastDropMs = nowMs;
+                }
+                yield held;
+            }
             case HARD_DROP -> {
                 game.hardDrop();
                 lastDropMs = nowMs;

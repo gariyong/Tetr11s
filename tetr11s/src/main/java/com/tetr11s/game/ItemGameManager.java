@@ -45,6 +45,12 @@ public class ItemGameManager extends GameManager {
     private List<Integer> pendingItemIndices = List.of();
     private Item currentItem;
     private List<Integer> currentItemIndices = List.of();
+    // 홀드 칸 블럭에 붙은 아이템과 그 칸 번호 (아이템이 없으면 null / 빈 목록)
+    private Item heldItem;
+    private List<Integer> heldItemIndices = List.of();
+    // hold() 도중 홀드 칸에서 꺼내는 블럭의 아이템 (spawnFromHold에서 쓴다)
+    private Item itemFromHold;
+    private List<Integer> itemIndicesFromHold = List.of();
     private int linesAtLastItem;
     private final boolean bugMode;
     private int locksSinceItem;
@@ -84,6 +90,10 @@ public class ItemGameManager extends GameManager {
         pendingItemIndices = List.of();
         currentItem = null;
         currentItemIndices = List.of();
+        heldItem = null;
+        heldItemIndices = List.of();
+        itemFromHold = null;
+        itemIndicesFromHold = List.of();
         linesAtLastItem = 0;
         locksSinceItem = 0;
         weightCrushing = false;
@@ -170,6 +180,53 @@ public class ItemGameManager extends GameManager {
             return ghost;
         }
         return super.getGhost();
+    }
+
+    // ----- 홀드: 아이템도 블럭과 함께 홀드 칸에 들어갔다가 그대로 다시 나온다 -----
+
+    @Override
+    public boolean hold() {
+        if (!canHold()) {
+            return false;
+        }
+        // 꺼낼 블럭의 아이템과 넣을 블럭의 아이템을 맞바꾼다
+        itemFromHold = heldItem;
+        itemIndicesFromHold = heldItemIndices;
+        heldItem = currentItem;
+        heldItemIndices = currentItemIndices;
+        return super.hold();
+    }
+
+    /** 무게추가 이미 블럭을 부수기 시작했으면 홀드할 수 없다 (부순 칸을 되돌릴 수 없으므로) */
+    @Override
+    public boolean canHold() {
+        if (currentItem == Item.W && weightCrushing) {
+            return false;
+        }
+        return super.canHold();
+    }
+
+    @Override
+    protected void spawnFromHold(Tetromino type) {
+        weightCrushing = false;
+        if (itemFromHold == Item.M) {
+            current = spawnMeteor();
+            if (!board.canPlace(current)) {
+                gameOver = true;
+            }
+        } else if (itemFromHold == Item.W) {
+            current = Block.special(WEIGHT_SHAPE, board.width());
+            if (!board.canPlace(current)) {
+                gameOver = true;
+            }
+        } else {
+            super.spawnFromHold(type);
+        }
+        // 같은 블럭 모양이 회전 0으로 다시 나오므로 아이템이 붙은 칸 번호도 그대로 쓸 수 있다
+        currentItem = itemFromHold;
+        currentItemIndices = itemIndicesFromHold;
+        itemFromHold = null;
+        itemIndicesFromHold = List.of();
     }
 
     private boolean stepWeightDown() {
@@ -725,6 +782,16 @@ public class ItemGameManager extends GameManager {
     @Override
     public Item getNextItemType() {
         return pendingItem;
+    }
+
+    @Override
+    public Item getHeldItemType() {
+        return heldItem;
+    }
+
+    /** 홀드 칸 블럭에서 아이템 표시가 붙을 셀 인덱스 목록 */
+    public List<Integer> getHeldItemIndices() {
+        return heldItemIndices;
     }
 
     /** NEXT 미리보기 블록에서 아이템 표시가 붙을 셀 인덱스 목록 */

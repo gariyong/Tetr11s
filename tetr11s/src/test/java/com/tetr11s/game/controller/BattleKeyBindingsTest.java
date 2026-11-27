@@ -50,8 +50,9 @@ class BattleKeyBindingsTest {
             }
         }
 
-        assertEquals(10, usedKeys.size());
-        assertEquals(10, bindings.allBindings().size());
+        int totalKeys = 2 * BattleKeyBindings.BATTLE_ACTIONS.size();
+        assertEquals(totalKeys, usedKeys.size());
+        assertEquals(totalKeys, bindings.allBindings().size());
     }
 
     @Test
@@ -63,12 +64,14 @@ class BattleKeyBindingsTest {
         assertEquals(Optional.of(new PlayerInput(1, GameAction.SOFT_DROP)), bindings.inputFor(KeyCode.S));
         assertEquals(Optional.of(new PlayerInput(1, GameAction.ROTATE_CW)), bindings.inputFor(KeyCode.W));
         assertEquals(Optional.of(new PlayerInput(1, GameAction.HARD_DROP)), bindings.inputFor(KeyCode.SPACE));
+        assertEquals(Optional.of(new PlayerInput(1, GameAction.HOLD)), bindings.inputFor(KeyCode.Q));
 
         assertEquals(Optional.of(new PlayerInput(2, GameAction.MOVE_LEFT)), bindings.inputFor(KeyCode.LEFT));
         assertEquals(Optional.of(new PlayerInput(2, GameAction.MOVE_RIGHT)), bindings.inputFor(KeyCode.RIGHT));
         assertEquals(Optional.of(new PlayerInput(2, GameAction.SOFT_DROP)), bindings.inputFor(KeyCode.DOWN));
         assertEquals(Optional.of(new PlayerInput(2, GameAction.ROTATE_CW)), bindings.inputFor(KeyCode.UP));
         assertEquals(Optional.of(new PlayerInput(2, GameAction.HARD_DROP)), bindings.inputFor(KeyCode.ENTER));
+        assertEquals(Optional.of(new PlayerInput(2, GameAction.HOLD)), bindings.inputFor(KeyCode.SLASH));
 
         assertNotEquals(bindings.keyFor(1, GameAction.HARD_DROP), bindings.keyFor(2, GameAction.HARD_DROP));
     }
@@ -85,7 +88,7 @@ class BattleKeyBindingsTest {
         bindings.bind(1, GameAction.MOVE_LEFT, KeyCode.LEFT);
         assertEquals(KeyCode.LEFT, bindings.keyFor(1, GameAction.MOVE_LEFT));
         assertEquals(KeyCode.A, bindings.keyFor(2, GameAction.MOVE_LEFT));
-        assertEquals(10, bindings.allBindings().size());
+        assertEquals(2 * BattleKeyBindings.BATTLE_ACTIONS.size(), bindings.allBindings().size());
 
         // 다시 로드해도 변경된 키가 그대로 유지된다
         BattleKeyBindings reloaded = new BattleKeyBindings();

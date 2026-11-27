@@ -37,6 +37,10 @@ public class GameManager {
     protected Tetromino next;
     protected boolean gameOver;
     protected boolean paused;
+    // 홀드 칸에 넣어 둔 블럭 (비어 있으면 null)
+    protected Tetromino held;
+    // 지금 블럭으로 이미 홀드했는지 (블럭 하나당 한 번만 홀드할 수 있다)
+    protected boolean holdUsed;
     // 지금 지우는 중인 줄 (비어 있으면 줄 삭제 중이 아님)
     protected List<Integer> clearingRows = List.of();
 
@@ -98,6 +102,8 @@ public class GameManager {
         pendingAttack.clear();
         clearedThisLock = 0;
         lockedCells = List.of();
+        held = null;
+        holdUsed = false;
         next = nextType.get();
         spawnNext();
     }
@@ -138,6 +144,35 @@ public class GameManager {
             }
         }
         return false;
+    }
+
+    /**
+     * 지금 블럭을 홀드 칸에 넣는다.
+     * 홀드 칸이 비어 있으면 다음 블럭을 꺼내고, 차 있으면 홀드 칸의 블럭과 맞바꾼다.
+     * 꺼낸 블럭은 생성 위치에서 회전 0으로 다시 시작한다.
+     * 블럭 하나당 한 번만 쓸 수 있고, 블럭이 고정되면 다시 쓸 수 있다.
+     * 블럭을 고정하는 게 아니므로 점수도 없고, 받은 공격 줄도 이때는 들어오지 않는다.
+     *
+     * @return 홀드했으면 true
+     */
+    public boolean hold() {
+        if (!canHold()) {
+            return false;
+        }
+        Tetromino fromHold = held;
+        held = current.type();
+        if (fromHold == null) {
+            spawnNext();
+        } else {
+            spawnFromHold(fromHold);
+        }
+        holdUsed = true;
+        return true;
+    }
+
+    /** 지금 홀드할 수 있는가 (이번 블럭에서 아직 홀드하지 않았고, 조작할 수 있는 상태) */
+    public boolean canHold() {
+        return canAct() && current != null && !holdUsed;
     }
 
     /**
@@ -244,6 +279,21 @@ public class GameManager {
 
     public Tetromino getNext() {
         return next;
+    }
+
+    /** 홀드 칸의 블럭 (비어 있으면 null) */
+    public Tetromino getHeld() {
+        return held;
+    }
+
+    /** 지금 블럭으로 이미 홀드했는가 (화면에서 홀드 칸을 흐리게 그릴 때 쓴다) */
+    public boolean isHoldUsed() {
+        return holdUsed;
+    }
+
+    /** 홀드 칸 블럭에 붙은 아이템 (일반 게임은 항상 null) */
+    public Item getHeldItemType() {
+        return null;
     }
 
     public Item getNextItemType() {
@@ -415,6 +465,7 @@ public class GameManager {
             current = null;
             return;
         }
+        holdUsed = false;   // 블럭을 고정했으니 새 블럭에서 다시 홀드할 수 있다
         spawnNext();
     }
 
@@ -437,6 +488,14 @@ public class GameManager {
     }
 
     protected void onBlockLocked(Block locked) {
+    }
+
+    /** 홀드 칸에서 꺼낸 블럭을 생성 위치에 놓는다. 자리가 막혀 있으면 게임오버 (블럭 아웃) */
+    protected void spawnFromHold(Tetromino type) {
+        current = Block.spawn(type, board.width());
+        if (!board.canPlace(current)) {
+            gameOver = true;
+        }
     }
 
     protected void spawnNext() {
