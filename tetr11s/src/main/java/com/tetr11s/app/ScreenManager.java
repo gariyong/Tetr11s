@@ -1,10 +1,13 @@
 package com.tetr11s.app;
 
+import java.awt.MenuContainer;
 import java.io.IOException;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 import com.tetr11s.app.controller.BattleModeController;
+import com.tetr11s.app.controller.MenuScreenController; 
 import com.tetr11s.app.controller.NameInputController;
 import com.tetr11s.app.controller.ScoreBoardController;
 import com.tetr11s.app.controller.StartMenuController;
@@ -39,7 +42,6 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
-import javafx.scene.transform.Scale;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 
@@ -116,7 +118,6 @@ public class ScreenManager {
             currentScreen.stop();
             currentScreen=null;
             focusListener=null; 
-            
         }
     }
 
@@ -267,6 +268,27 @@ public class ScreenManager {
         screen.attachToScene(battleScene);
         currentScreen.start();
     }
+
+    public void showMultimode() throws IOException{
+        stopCurrentGame();
+
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/menu_screen.fxml"));
+        Parent root = loader.load();
+
+        MenuScreenController controller = loader.getController();
+        controller.show( "BATTLE", "대전 방식을 선택하세요", List.of(
+            new MenuScreenController.Item("로컬 대전", "한 PC에서 두 명이 키보드를 나눠 대전합니다.",
+                this::showBattleModeMenu),
+            new MenuScreenController.Item("P2P 대전", "두 PC를 네트워크로 연결해 대전합니다.",
+                () -> controller.showMessage("P2P 대전은 준비 중입니다.")),
+            new MenuScreenController.Item("돌아가기", "시작 메뉴로 돌아갑니다.",
+                this::showStartMenu)),
+            this::showStartMenu );
+
+            stage.setTitle("Tetr11s - 대전 모드");
+            mountScene(root, MENU_BASE_WIDTH, MENU_BASE_HEIGHT);
+    } 
+
     // 설정화면뷰를 씬에 연결한다
     public void showSettings() {
         stopCurrentGame();
