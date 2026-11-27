@@ -73,6 +73,7 @@ public class SettingsView extends BorderPane {
             GameAction.SOFT_DROP, "↓ 소프트드롭",
             GameAction.HARD_DROP, "하드드롭",
             GameAction.ROTATE_CW, "시계 회전",
+            GameAction.HOLD, "홀드",
             GameAction.PAUSE, "일시정지",
             GameAction.QUIT, "종료");
 

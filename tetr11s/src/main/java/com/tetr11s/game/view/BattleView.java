@@ -28,7 +28,8 @@ import javafx.scene.text.FontWeight;
  */
 public class BattleView extends StackPane {
 
-    public static final double BASE_WIDTH = 1040;
+    // 플레이어마다 홀드 칸(126) + 간격(14)이 들어가서 1040에서 280 늘었다
+    public static final double BASE_WIDTH = 1320;
     public static final double BASE_HEIGHT = 690;
 
     private static final long TIMER_URGENT_MS = 10_000L;

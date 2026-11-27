@@ -16,13 +16,14 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
 /**
- * 게임 화면 전체: 왼쪽에 보드, 오른쪽에 다음 블럭, 점수, 상태, 조작 안내.
+ * 게임 화면 전체: 왼쪽 위에 홀드, 가운데 보드, 오른쪽에 다음 블럭, 점수, 상태, 조작 안내.
  * 상태를 바꾸지 않고, refresh()가 호출되면 GameManager를 읽어서 다시 그리기만 한다.
  */
 public class GameView extends HBox {
 
     // 게임 화면의 고정 기준 해상도
-    public static final double BASE_WIDTH = 540;
+    // 홀드 칸(126) + 간격(24)이 들어가서 540에서 150 늘었다
+    public static final double BASE_WIDTH = 690;
     public static final double BASE_HEIGHT = 644;
 
     private static final Font INFO_FONT = Font.font("Monospaced", FontWeight.BOLD, 18);
@@ -34,6 +35,7 @@ public class GameView extends HBox {
     private final KeyBindings bindings;
     private final BoardView boardView;
     private final NextBlockView nextView;
+    private final HoldView holdView;
     private final Label scoreValue = infoLabel("0");
     private final Label levelValue = infoLabel("1");
     private final Label linesValue = infoLabel("0");
@@ -49,6 +51,7 @@ public class GameView extends HBox {
         Board board = game.getBoard();
         this.boardView = new BoardView(palette, board.width(), board.height() - Board.BUFFER_ROWS);
         this.nextView = new NextBlockView(palette);
+        this.holdView = new HoldView(palette, INFO_FONT, Color.WHITE);
 
         VBox side = new VBox(10,
                 infoLabel("NEXT"), nextView,
@@ -63,7 +66,7 @@ public class GameView extends HBox {
         setSpacing(24);
         setPadding(new Insets(20));
         setStyle("-fx-background-color: #1e1e1e;");
-        getChildren().addAll(boardView, side);
+        getChildren().addAll(holdView, boardView, side);
 
         // 내부 레이아웃 고정
         setPrefSize(BASE_WIDTH, BASE_HEIGHT);
@@ -79,6 +82,7 @@ public class GameView extends HBox {
     /** 게임 상태를 읽어서 화면 전체를 다시 그린다. */
     public void refresh() {
         boardView.render(game, lineClearFlash);
+        holdView.render(game);
         javafx.scene.Node shakeTarget = getParent() != null ? getParent() : this;
         if (game instanceof com.tetr11s.game.ItemGameManager itemGame) {
             nextView.render(game.getNext(), game.getNextItemType(), itemGame.getNextItemIndices());
@@ -115,6 +119,7 @@ public class GameView extends HBox {
                 key(GameAction.SOFT_DROP) + " : 아래로",
                 key(GameAction.ROTATE_CW) + " : 회전",
                 key(GameAction.HARD_DROP) + " : 바로 떨어뜨리기",
+                key(GameAction.HOLD) + " : 홀드",
                 key(GameAction.PAUSE) + " : 일시정지",
                 key(GameAction.QUIT) + " : 종료");
         Label help = new Label(text);

@@ -32,6 +32,7 @@ public class KeyBindings {
         keys.put(GameAction.SOFT_DROP, KeyCode.DOWN);
         keys.put(GameAction.ROTATE_CW, KeyCode.UP);
         keys.put(GameAction.HARD_DROP, KeyCode.SPACE);
+        keys.put(GameAction.HOLD, KeyCode.C);
         keys.put(GameAction.PAUSE, KeyCode.P);
         keys.put(GameAction.QUIT, KeyCode.ESCAPE);
     }
@@ -98,12 +99,17 @@ public class KeyBindings {
     public void loadPreset(String name) {
         String normalized = normalizePresetName(name);
         Properties properties = SettingsStore.load();
+        boolean found = false;
         for (GameAction action : GameAction.values()) {
             String value = properties.getProperty(SettingsStore.keyPresetKey(normalized, action));
-            if (value == null) {
-                throw new IllegalArgumentException("저장된 키 프리셋이 없습니다: " + name);
+            // 나중에 추가된 동작(예: 홀드)이 없는 예전 프리셋은 그 동작만 지금 키를 유지한다
+            if (value != null) {
+                keys.put(action, SettingsStore.parseKey(value, keys.get(action)));
+                found = true;
             }
-            keys.put(action, SettingsStore.parseKey(value, keys.get(action)));
+        }
+        if (!found) {
+            throw new IllegalArgumentException("저장된 키 프리셋이 없습니다: " + name);
         }
         saveActive();
     }

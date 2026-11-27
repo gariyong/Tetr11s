@@ -28,7 +28,8 @@ public class BattleKeyBindings {
             GameAction.MOVE_RIGHT,
             GameAction.SOFT_DROP,
             GameAction.ROTATE_CW,
-            GameAction.HARD_DROP
+            GameAction.HARD_DROP,
+            GameAction.HOLD
     );
 
     private final Map<GameAction, KeyCode> p1Keys = new EnumMap<>(GameAction.class);
@@ -51,12 +52,15 @@ public class BattleKeyBindings {
         putDirect(1, GameAction.SOFT_DROP, KeyCode.S);
         putDirect(1, GameAction.ROTATE_CW, KeyCode.W);
         putDirect(1, GameAction.HARD_DROP, KeyCode.SPACE);
+        putDirect(1, GameAction.HOLD, KeyCode.Q);
 
         putDirect(2, GameAction.MOVE_LEFT, KeyCode.LEFT);
         putDirect(2, GameAction.MOVE_RIGHT, KeyCode.RIGHT);
         putDirect(2, GameAction.SOFT_DROP, KeyCode.DOWN);
         putDirect(2, GameAction.ROTATE_CW, KeyCode.UP);
         putDirect(2, GameAction.HARD_DROP, KeyCode.ENTER);
+        // JavaFX는 왼쪽/오른쪽 Shift를 구분하지 못해서(둘 다 SHIFT) 오른쪽 Shift 옆의 '/'를 쓴다
+        putDirect(2, GameAction.HOLD, KeyCode.SLASH);
     }
 
     /** 현재 대전 키 매핑을 설정 파일에 저장한다. */
@@ -113,7 +117,8 @@ public class BattleKeyBindings {
                 keyName(player, GameAction.MOVE_LEFT) + " / " + keyName(player, GameAction.MOVE_RIGHT) + " : 이동",
                 keyName(player, GameAction.SOFT_DROP) + " : 아래로",
                 keyName(player, GameAction.ROTATE_CW) + " : 회전",
-                keyName(player, GameAction.HARD_DROP) + " : 하드드롭");
+                keyName(player, GameAction.HARD_DROP) + " : 하드드롭",
+                keyName(player, GameAction.HOLD) + " : 홀드");
     }
 
     private void loadActive() {

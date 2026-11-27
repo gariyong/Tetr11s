@@ -11,6 +11,7 @@ public enum GameAction {
     SOFT_DROP,
     HARD_DROP,
     ROTATE_CW,
+    HOLD,
     PAUSE,
     QUIT
 }

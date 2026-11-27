@@ -16,9 +16,9 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
 /**
- * 로컬 대전 화면에서 플레이어 1명분의 UI(보드 + 사이드바)를 담당하는 재사용 컴포넌트.
+ * 로컬 대전 화면에서 플레이어 1명분의 UI(홀드 + 보드 + 사이드바)를 담당하는 재사용 컴포넌트.
  *
- * boardOnLeft 값에 따라 P1은 [보드 | 사이드바], P2는 [사이드바 | 보드]로 대칭 배치된다.
+ * boardOnLeft 값에 따라 P1은 [홀드 | 보드 | 사이드바], P2는 [사이드바 | 홀드 | 보드]로 배치된다.
  */
 public class BattlePlayerView extends HBox {
 
@@ -32,6 +32,7 @@ public class BattlePlayerView extends HBox {
     private final GameManager game;
     private final BoardView boardView;
     private final NextBlockView nextView;
+    private final HoldView holdView;
     private final GarbagePreviewView garbageView;
     private final Label scoreValue = valueLabel("0");
     private final Label levelValue = valueLabel("1");
@@ -49,6 +50,7 @@ public class BattlePlayerView extends HBox {
         this.boardView = new BoardView(palette, board.width(), board.height() - Board.BUFFER_ROWS);
         this.nextView = new NextBlockView(palette);
         this.garbageView = new GarbagePreviewView();
+        this.holdView = new HoldView(palette, SECTION_FONT, Color.rgb(190, 195, 215));
 
         Label header = new Label(title);
         header.setFont(HEADER_FONT);
@@ -79,10 +81,11 @@ public class BattlePlayerView extends HBox {
 
         setSpacing(14);
         setAlignment(Pos.TOP_CENTER);
+        // 홀드 칸은 두 플레이어 모두 보드 왼쪽 위에 둔다
         if (boardOnLeft) {
-            getChildren().addAll(boardView, side);
+            getChildren().addAll(holdView, boardView, side);
         } else {
-            getChildren().addAll(side, boardView);
+            getChildren().addAll(side, holdView, boardView);
         }
     }
 
@@ -94,6 +97,7 @@ public class BattlePlayerView extends HBox {
     /** GameManager 상태를 읽어 보드·미리보기·공격 대기열·점수를 다시 그린다. */
     public void refresh() {
         boardView.render(game, lineClearFlash);
+        holdView.render(game);
         if (game instanceof ItemGameManager itemGame) {
             nextView.render(game.getNext(), game.getNextItemType(), itemGame.getNextItemIndices());
             double[] shake = itemGame.getShakeOffset(System.currentTimeMillis());
