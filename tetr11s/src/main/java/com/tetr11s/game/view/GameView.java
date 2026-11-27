@@ -10,6 +10,8 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -17,9 +19,10 @@ import javafx.scene.text.FontWeight;
 
 /**
  * 게임 화면 전체: 왼쪽 위에 홀드, 가운데 보드, 오른쪽에 다음 블럭, 점수, 상태, 조작 안내.
+ * 일시정지하면 대전 화면과 같은 모양의 안내 카드가 화면 전체를 덮는다.
  * 상태를 바꾸지 않고, refresh()가 호출되면 GameManager를 읽어서 다시 그리기만 한다.
  */
-public class GameView extends HBox {
+public class GameView extends StackPane {
 
     // 게임 화면의 고정 기준 해상도
     // 홀드 칸(126) + 간격(24)이 들어가서 540에서 150 늘었다
@@ -28,7 +31,8 @@ public class GameView extends HBox {
 
     private static final Font INFO_FONT = Font.font("Monospaced", FontWeight.BOLD, 18);
     private static final Font HELP_FONT = Font.font("Monospaced", 13);
-    private static final Color PAUSED_COLOR = Color.rgb(240, 200, 80);
+    // 일시정지 안내 카드는 BattleView의 일시정지 화면과 같은 글꼴과 색을 쓴다
+    private static final Color PAUSED_COLOR = Color.rgb(245, 220, 90);
     private static final Color GAME_OVER_COLOR = Color.rgb(240, 80, 80);
 
     private final GameManager game;
@@ -40,6 +44,7 @@ public class GameView extends HBox {
     private final Label levelValue = infoLabel("1");
     private final Label linesValue = infoLabel("0");
     private final Label statusLabel = infoLabel("");
+    private final VBox pauseOverlay;
 
     private boolean lineClearFlash;   // 지울 줄을 흰색으로 그릴 차례인가 (GameController가 정해 줌)
     
@@ -63,10 +68,12 @@ public class GameView extends HBox {
                 helpLabel());
         side.setAlignment(Pos.TOP_LEFT);
 
-        setSpacing(24);
-        setPadding(new Insets(20));
-        setStyle("-fx-background-color: #1e1e1e;");
-        getChildren().addAll(holdView, boardView, side);
+        HBox content = new HBox(24, holdView, boardView, side);
+        content.setPadding(new Insets(20));
+        content.setStyle("-fx-background-color: #1e1e1e;");
+
+        this.pauseOverlay = pauseOverlay();
+        getChildren().addAll(content, pauseOverlay);
 
         // 내부 레이아웃 고정
         setPrefSize(BASE_WIDTH, BASE_HEIGHT);
@@ -102,14 +109,42 @@ public class GameView extends HBox {
         if (game.isGameOver()) {
             statusLabel.setText("GAME OVER\n" + key(GameAction.QUIT) + ": 종료");
             statusLabel.setTextFill(GAME_OVER_COLOR);
-        } else if (game.isPaused()) {
-            statusLabel.setText("PAUSED\n"
-                    + key(GameAction.PAUSE) + ": 계속\n"
-                    + key(GameAction.QUIT) + ": 종료");
-            statusLabel.setTextFill(PAUSED_COLOR);
         } else {
             statusLabel.setText("");
         }
+        // 게임 오버 중에는 일시정지가 안 되므로 카드는 일시정지일 때만 보인다
+        pauseOverlay.setVisible(game.isPaused() && !game.isGameOver());
+    }
+
+    /** 대전 화면의 일시정지 오버레이와 같은 모양: 어둡게 덮은 바탕 위 가운데 카드. */
+    private VBox pauseOverlay() {
+        Label title = new Label("PAUSED");
+        title.setFont(Font.font("Malgun Gothic", FontWeight.BOLD, 38));
+        title.setTextFill(PAUSED_COLOR);
+
+        Label detail = new Label("게임이 일시정지되었습니다");
+        detail.setFont(Font.font("Malgun Gothic", FontWeight.BOLD, 18));
+        detail.setTextFill(Color.rgb(220, 224, 240));
+
+        // 일시정지 중에 종료 키를 누르면 게임을 끝내고 점수 화면으로 간다
+        Label hint = new Label(key(GameAction.PAUSE) + " : 계속하기     |     "
+                + key(GameAction.QUIT) + " : 게임 종료");
+        hint.setFont(Font.font("Malgun Gothic", 15));
+        hint.setTextFill(Color.rgb(175, 180, 200));
+
+        VBox card = new VBox(14, title, detail, hint);
+        card.setAlignment(Pos.CENTER);
+        card.setPadding(new Insets(32, 48, 32, 48));
+        card.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        card.setStyle("-fx-background-color: #1d2033; -fx-background-radius: 14; "
+                + "-fx-border-color: #4a5178; -fx-border-width: 2; -fx-border-radius: 14;");
+
+        VBox overlay = new VBox(card);
+        overlay.setAlignment(Pos.CENTER);
+        overlay.setStyle("-fx-background-color: rgba(9, 10, 22, 0.78);");
+        overlay.setVisible(false);
+        overlay.setMouseTransparent(true);
+        return overlay;
     }
 
     /** 현재 키 설정으로 조작 안내를 만든다. */
