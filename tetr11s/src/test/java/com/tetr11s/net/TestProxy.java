@@ -109,9 +109,11 @@ public final class TestProxy implements AutoCloseable {
                 }
                 line.add(new Chunk(System.nanoTime() + delayNanos, Arrays.copyOf(buffer, n)));
             }
-            line.add(new Chunk(System.nanoTime() + delayNanos, END));
         } catch (IOException | InterruptedException ignored) {
-            // 테스트가 끝나서 닫힘
+            // 상대가 갑자기 끊었거나(연결 재설정) 테스트가 끝나서 닫힘
+        } finally {
+            // 어떻게 끝났든 반대쪽에도 끊겼다고 알린다 (안 알리면 반대쪽은 시간 초과로만 끊김을 알게 됨)
+            line.add(new Chunk(System.nanoTime() + delayNanos, END));
         }
     }
 
