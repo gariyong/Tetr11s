@@ -23,7 +23,7 @@ import javafx.scene.layout.VBox;
  * 조작: ↑↓ 이동, Enter 선택, Esc 돌아가기, 마우스 클릭
  *
  * 이전 화면에서 누른 Enter·Esc가 이 화면에서 한 번 더 눌린 것처럼 처리되지 않도록,
- * 키를 한 번 뗄 때까지는 Enter와 Esc를 받지 않는다 (BattleModeController의 ready와 같은 이유)
+ * 키를 한 번 뗄 때까지는 Enter와 Esc를 받지 않는다
  */
 public class MenuScreenController {
 
