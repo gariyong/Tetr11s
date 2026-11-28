@@ -1,10 +1,11 @@
 package com.tetr11s.app;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.Map;
 
-import com.tetr11s.app.controller.BattleModeController;
+import com.tetr11s.app.controller.MenuScreenController;
 import com.tetr11s.app.controller.NameInputController;
 import com.tetr11s.app.controller.ScoreBoardController;
 import com.tetr11s.app.controller.StartMenuController;
@@ -213,17 +214,24 @@ public class ScreenManager {
         currentScreen.start();
     }
 
-    /** 로컬 2인 대전 모드 선택 화면(일반 / 아이템 / 시간제한)을 표시한다. */
+    /** 로컬 2인 대전 모드 선택 화면 (일반 / 아이템 / 시간제한 / 돌아가기) */
     public void showBattleModeMenu() throws IOException {
         stopCurrentGame();
 
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/battle_mode.fxml"));
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/menu_screen.fxml"));
         Parent root = loader.load();
 
-        BattleModeController controller = loader.getController();
-        controller.setScreenManager(this);
+        List<MenuScreenController.Item> items = new ArrayList<>();
+        for (BattleMode mode : BattleMode.values()) {
+            items.add(new MenuScreenController.Item(mode.displayName() + " 대전", mode.description(),
+                    () -> showBattle(mode)));
+        }
+        items.add(new MenuScreenController.Item("돌아가기", "대전 방식 선택으로 돌아갑니다.", this::showMultimode));
 
-        stage.setTitle("Tetr11s - 대전 모드");
+        MenuScreenController controller = loader.getController();
+        controller.show("BATTLE", "로컬 2인 대전 모드를 선택하세요", items, this::showMultimode);
+
+        stage.setTitle("Tetr11s - 로컬 대전");
         mountScene(root, MENU_BASE_WIDTH, MENU_BASE_HEIGHT);
     }
 
