@@ -10,10 +10,19 @@ import javafx.stage.Stage;
  */
 public class TetrisApp extends Application {
 
+    private ScreenManager screen;
+
     @Override
     public void start(Stage stage) throws Exception {
-        ScreenManager screen = new ScreenManager(stage);
+        screen = new ScreenManager(stage);
         screen.showStartMenu();
+    }
+
+    @Override 
+    public void stop(){
+        if(screen != null){
+            screen.shutdown();
+        }
     }
 
     public static void main(String[] args) {
