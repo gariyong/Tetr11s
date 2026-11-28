@@ -111,9 +111,9 @@ public class BattleModeController {
 
     private static String descriptionFor(int index) {
         return switch (index) {
-            case 0 -> "2줄 이상 지우면 상대 보드에 공격 줄이 추가됩니다.";
-            case 1 -> "아이템(L, W, H, O, M)을 활용해 상대를 공격합니다.";
-            case 2 -> "2분 제한 시간 종료 시 점수가 더 높은 플레이어가 승리합니다.";
+            case 0 -> BattleMode.NORMAL.description();
+            case 1 -> BattleMode.ITEM.description();
+            case 2 -> BattleMode.TIME_LIMIT.description();
             default -> "시작 메뉴로 돌아갑니다.";
         };
     }

@@ -1,13 +1,12 @@
 package com.tetr11s.app;
 
-import java.awt.MenuContainer;
 import java.io.IOException;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
 import com.tetr11s.app.controller.BattleModeController;
-import com.tetr11s.app.controller.MenuScreenController; 
+import com.tetr11s.app.controller.MenuScreenController;
 import com.tetr11s.app.controller.NameInputController;
 import com.tetr11s.app.controller.ScoreBoardController;
 import com.tetr11s.app.controller.StartMenuController;
@@ -24,6 +23,9 @@ import com.tetr11s.game.controller.BattleKeyBindings;
 import com.tetr11s.game.controller.GameController;
 import com.tetr11s.game.view.BattleView;
 import com.tetr11s.game.view.GameView;
+import com.tetr11s.net.flow.HostWaitView;
+import com.tetr11s.net.flow.JoinView;
+import com.tetr11s.net.flow.LobbyView;
 import com.tetr11s.score.ScoreBoard;
 import com.tetr11s.score.ScoreEntry;
 import com.tetr11s.score.ScoreStore;
@@ -280,7 +282,7 @@ public class ScreenManager {
             new MenuScreenController.Item("로컬 대전", "한 PC에서 두 명이 키보드를 나눠 대전합니다.",
                 this::showBattleModeMenu),
             new MenuScreenController.Item("P2P 대전", "두 PC를 네트워크로 연결해 대전합니다.",
-                () -> controller.showMessage("P2P 대전은 준비 중입니다.")),
+                this::showP2PMenu),
             new MenuScreenController.Item("돌아가기", "시작 메뉴로 돌아갑니다.",
                 this::showStartMenu)),
             this::showStartMenu );
@@ -288,6 +290,65 @@ public class ScreenManager {
             stage.setTitle("Tetr11s - 대전 모드");
             mountScene(root, MENU_BASE_WIDTH, MENU_BASE_HEIGHT);
     } 
+
+        /** P2P 대전 첫 화면 (서버 열기 / 서버에 접속 / 돌아가기) */
+    public void showP2PMenu() throws IOException {
+        showP2PMenu(null);
+    }
+
+    /**
+     * P2P 대전 첫 화면. 요구사항의 "P2P 대전 모드에 처음 들어갔을 때의 화면"이다
+     * 연결이 끊기는 등으로 돌아올 때는 message에 이유를 담아 아래쪽에 보여 준다
+     */
+    public void showP2PMenu(String message) throws IOException {
+        stopCurrentGame();
+
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/menu_screen.fxml"));
+        Parent root = loader.load();
+
+        MenuScreenController controller = loader.getController();
+        controller.show("P2P", "서버 또는 클라이언트를 고르세요", List.of(
+                new MenuScreenController.Item("서버 열기", "내 IP를 알려 주고 상대가 접속하기를 기다립니다.",
+                        () -> P2PScreenPreview.host(this)),
+                new MenuScreenController.Item("서버에 접속", "상대가 연 서버의 IP를 입력해 접속합니다.",
+                        () -> P2PScreenPreview.join(this)),
+                new MenuScreenController.Item("돌아가기", "대전 방식 선택으로 돌아갑니다.",
+                        this::showMultimode)),
+                this::showMultimode);
+        if (message != null && !message.isBlank()) {
+            controller.showMessage(message);
+        }
+
+        stage.setTitle("Tetr11s - P2P 대전");
+        mountScene(root, MENU_BASE_WIDTH, MENU_BASE_HEIGHT);
+    }
+
+    /** P2P 서버 대기 화면을 띄우고, 그 화면을 다룰 수 있는 HostWaitView를 돌려준다 */
+    public HostWaitView showP2PHostScreen() throws IOException {
+        return mountP2PScreen("p2p_host.fxml", "Tetr11s - P2P 서버");
+    }
+
+    /** P2P 클라이언트 접속 화면을 띄우고, 그 화면을 다룰 수 있는 JoinView를 돌려준다 */
+    public JoinView showP2PJoinScreen() throws IOException {
+        return mountP2PScreen("p2p_join.fxml", "Tetr11s - P2P 접속");
+    }
+
+    /** P2P 로비를 띄우고, 그 화면을 다룰 수 있는 LobbyView를 돌려준다 */
+    public LobbyView showP2PLobbyScreen() throws IOException {
+        return mountP2PScreen("p2p_lobby.fxml", "Tetr11s - P2P 대기실");
+    }
+
+    // P2P 화면 하나를 읽어서 붙이고, 그 화면의 컨트롤러를 돌려준다
+    private <T> T mountP2PScreen(String fxml, String title) throws IOException {
+        stopCurrentGame();
+
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/tetr11s/fxml/" + fxml));
+        Parent root = loader.load();
+
+        stage.setTitle(title);
+        mountScene(root, MENU_BASE_WIDTH, MENU_BASE_HEIGHT);
+        return loader.getController();
+    }
 
     // 설정화면뷰를 씬에 연결한다
     public void showSettings() {

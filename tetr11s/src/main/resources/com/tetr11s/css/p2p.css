@@ -1,0 +1,117 @@
+/**
+* P2P 화면(서버 대기, 클라이언트 접속, 로비)에만 쓰는 모양
+* 글꼴, 배경, 제목, 메뉴 항목은 start_menu.css를 같이 쓴다
+*/
+
+.p2p-caption {
+    -fx-font-size: 15px;
+    -fx-text-fill: #8c8ca4;
+}
+
+.p2p-address {
+    -fx-font-size: 34px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f0f000;
+}
+
+.p2p-sub {
+    -fx-font-size: 14px;
+    -fx-text-fill: #b4b4c8;
+    -fx-text-alignment: center;
+}
+
+.p2p-status {
+    -fx-font-size: 15px;
+    -fx-text-fill: white;
+    -fx-text-alignment: center;
+}
+
+/** 에러는 색과 함께 앞에 ! 표시를 붙여서 색만으로 구분하지 않는다 (컨트롤러가 붙임) */
+.p2p-status:error {
+    -fx-text-fill: #ff7b7b;
+}
+
+.p2p-hint {
+    -fx-font-size: 13px;
+    -fx-text-fill: #8c8ca4;
+    -fx-text-alignment: center;
+}
+
+.p2p-field {
+    -fx-pref-width: 300;
+    -fx-max-width: 300;
+    -fx-font-size: 20px;
+    -fx-alignment: center;
+    -fx-background-color: #1e1e2c;
+    -fx-text-fill: white;
+    -fx-prompt-text-fill: #6c6c84;
+    -fx-border-color: #f0f000;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+
+.p2p-recent {
+    -fx-pref-width: 260;
+    -fx-alignment: center;
+    -fx-padding: 4 0 4 0;
+    -fx-font-size: 16px;
+    -fx-text-fill: #b4b4c8;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+}
+
+.p2p-recent:selected {
+    -fx-background-color: #f0f000;
+    -fx-text-fill: #12121c;
+    -fx-font-weight: bold;
+}
+
+.p2p-mode {
+    -fx-pref-width: 110;
+    -fx-alignment: center;
+    -fx-padding: 8 0 8 0;
+    -fx-font-size: 18px;
+    -fx-text-fill: #b4b4c8;
+    -fx-border-color: #3a3a50;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+
+.p2p-mode:selected {
+    -fx-background-color: #f0f000;
+    -fx-text-fill: #12121c;
+    -fx-font-weight: bold;
+    -fx-border-color: #f0f000;
+}
+
+.p2p-ready {
+    -fx-font-size: 18px;
+    -fx-text-fill: #8c8ca4;
+}
+
+.p2p-ready:ready {
+    -fx-text-fill: #7ee787;
+    -fx-font-weight: bold;
+}
+
+.p2p-countdown {
+    -fx-font-size: 56px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f0f000;
+}
+
+.p2p-result {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+.p2p-network {
+    -fx-font-size: 13px;
+    -fx-text-fill: #7ee787;
+}
+
+.p2p-network:lag {
+    -fx-text-fill: #f0b429;
+    -fx-font-weight: bold;
+}

@@ -97,7 +97,7 @@ public abstract class Session {
         }
         state = State.CLOSED;
         stopTimer();
-        connection.close(Message.Bye.Reason.LEFT);
+        connection.closeWithBye();
     }
 
     // ----- 화면이 부르는 것 -----
@@ -119,7 +119,7 @@ public abstract class Session {
         }
     }
 
-    /** 내 게임이 끝났다 (더 쌓을 수 없음, 또는 기권) */
+    /** 내 게임이 끝났다 (더 쌓을 수 없음, 또는 기권).게임 중에만 받는다. */
     public abstract void gameOver(int score);
 
     /** onTimeUp을 받은 뒤 내 최종 점수를 낸다 */
@@ -136,11 +136,6 @@ public abstract class Session {
         return connection.peerSnapshot();
     }
 
-    /** 이번 판 설정 (로비에서는 null) */
-    public final Message.Start currentStart() {
-        return current;
-    }
-
     /** 시간제한 모드의 남은 시간(ms). 시간제한 게임 중이 아니면 -1 */
     public final long remainingMillis() {
         if (current == null || current.mode() != BattleMode.TIME_LIMIT
@@ -149,11 +144,6 @@ public abstract class Session {
         }
         long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - gameStartNanos);
         return Math.max(0, current.timeLimitMs() - elapsed);
-    }
-
-    /** 최근 평균 왕복 시간(ms), 아직 못 쟀으면 -1 */
-    public final long rttMillis() {
-        return lag.averageRttMillis();
     }
 
     /** 상대 IP (화면 표시용) */
@@ -182,9 +172,6 @@ public abstract class Session {
         round++;
         listener.onCountdown(start);
         later(start.countdownMs(), () -> {
-            if (state != State.COUNTDOWN) {
-                return;   // 카운트다운 중에 기권함
-            }
             state = State.PLAYING;
             gameStartNanos = System.nanoTime();
             listener.onGameStart(start);

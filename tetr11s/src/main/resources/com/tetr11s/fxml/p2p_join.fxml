@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+
+<!--
+P2P 클라이언트 접속 화면: 서버 IP를 입력하거나 최근 주소를 골라 접속한다
+키 처리는 입력칸보다 먼저 받도록 P2PJoinController가 직접 건다 (그래서 여기에는 onKeyPressed가 없음)
+-->
+<BorderPane fx:id="root" fx:controller="com.tetr11s.app.controller.P2PJoinController"
+        xmlns="http://javafx.com/javafx/21"
+        xmlns:fx="http://javafx.com/fxml/1"
+        prefWidth="480" prefHeight="640"
+        stylesheets="@../css/start_menu.css,@../css/p2p.css" styleClass="start-menu">
+        <top>
+                <VBox alignment="CENTER" spacing="8">
+                        <Label text="CLIENT" styleClass="title"/>
+                        <Label text="서버의 IP 주소를 입력하세요" styleClass="key-hint"/>
+                </VBox>
+        </top>
+        <center>
+                <VBox alignment="CENTER" spacing="14">
+                        <TextField fx:id="addressField" promptText="예: 192.168.0.12" styleClass="p2p-field"
+                                onAction="#onSubmit"/>
+                        <Label fx:id="statusLabel" styleClass="p2p-status" wrapText="true"/>
+                        <Label text="최근 접속한 주소" styleClass="p2p-caption"/>
+                        <VBox fx:id="recentBox" alignment="CENTER" spacing="4"/>
+                </VBox>
+        </center>
+        <bottom>
+                <VBox alignment="CENTER" spacing="8">
+                        <Label text="포트를 바꿨다면 IP 뒤에 :포트 를 붙이세요 (예: 192.168.0.12:5000)" styleClass="p2p-hint" wrapText="true"/>
+                        <Label fx:id="keyHintLabel" styleClass="key-hint"/>
+                </VBox>
+        </bottom>
+</BorderPane>
