@@ -71,8 +71,4 @@ public final class LagMonitor {
         }
         return state;
     }
-
-    public State state() {
-        return state;
-    }
 }
