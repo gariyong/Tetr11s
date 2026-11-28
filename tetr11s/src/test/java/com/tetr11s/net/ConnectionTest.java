@@ -138,7 +138,7 @@ class ConnectionTest {
         Pair p = connect();
         List<Message> internal = List.of(
                 new Message.Hello(Message.PROTOCOL_VERSION),
-                new Message.Bye(Message.Bye.Reason.LEFT),
+                new Message.Bye(),
                 new Message.Snapshot(1, board(0)),
                 new Message.SnapshotAck(1),
                 new Message.Ping(1),
@@ -325,10 +325,10 @@ class ConnectionTest {
         Recorder server = start(p.server());
 
         p.client().send(new Message.GameOver(5));
-        p.client().close(Message.Bye.Reason.LEFT);
+        p.client().closeWithBye();
 
         assertEquals(new Message.GameOver(5), server.next());
-        assertEquals(new Message.Bye(Message.Bye.Reason.LEFT), server.next());
+        assertEquals(new Message.Bye(), server.next());
         assertEquals(new Recorder.Closed(CloseReason.PEER_CLOSED), server.next());
         server.assertNothingFor(200);
         client.assertNothingFor(0);

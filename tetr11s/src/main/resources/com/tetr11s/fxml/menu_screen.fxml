@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+
+<!--
+여러 하위 메뉴(대전 방식 선택, P2P 첫 화면 등)가 같이 쓰는 메뉴 화면
+제목, 안내 문구, 메뉴 항목은 MenuScreenController가 화면을 열 때 채운다
+-->
+<BorderPane fx:id="root" fx:controller="com.tetr11s.app.controller.MenuScreenController"
+        xmlns="http://javafx.com/javafx/21"
+        xmlns:fx="http://javafx.com/fxml/1"
+        prefWidth="480" prefHeight="640"
+        stylesheets="@../css/start_menu.css" styleClass="start-menu"
+        focusTraversable="true"
+        onKeyPressed="#onKeyPressed"
+        onKeyReleased="#onKeyReleased">
+        <top>
+                <VBox alignment="CENTER" spacing="8">
+                        <Label fx:id="titleLabel" styleClass="title"/>
+                        <Label fx:id="subtitleLabel" styleClass="key-hint"/>
+                </VBox>
+        </top>
+        <center>
+                <VBox fx:id="menuBox" alignment="CENTER" spacing="12"/>
+        </center>
+        <bottom>
+                <VBox alignment="CENTER" spacing="10">
+                        <!-- 선택한 항목의 설명 -->
+                        <Label fx:id="descriptionLabel" styleClass="message" wrapText="true"/>
+                        <!-- 안내나 에러 메시지 (예: 준비 중입니다, 상대와 연결이 끊겼습니다) -->
+                        <Label fx:id="messageLabel" styleClass="message" wrapText="true"/>
+                        <Label text="↑↓ 이동     Enter 선택     Esc 돌아가기" styleClass="key-hint"/>
+                </VBox>
+        </bottom>
+</BorderPane>

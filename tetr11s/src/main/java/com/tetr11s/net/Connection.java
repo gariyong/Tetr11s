@@ -248,18 +248,17 @@ public final class Connection {
     }
 
     /**
-     * 그때까지 보낸 메시지와 Bye를 보낸 뒤 닫는다. 바로 돌아온다 (실제 전송은 보내기 스레드가 함)
+     * Bye를 보낸 뒤 닫는다. 바로 돌아온다 (실제 전송은 보내기 스레드가 함)
      * 상대가 닫기를 byeWaitMs까지 기다리고, 그래도 안 닫히면 강제로 닫는다. 부른 뒤에는 콜백이 오지 않는다
      */
-    public void close(Message.Bye.Reason reason) {
-        Objects.requireNonNull(reason, "reason");
+    public void closeWithBye() {
         silenced = true;
         synchronized (lock) {
             if (ended.getAndSet(true)) {
                 return;   // 이미 끝난 연결
             }
             pendingSnapshot = null;
-            queue.addLast(new Message.Bye(reason));
+            queue.addLast(new Message.Bye());
             byeQueued = true;
             lock.notifyAll();
         }

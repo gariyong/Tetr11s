@@ -24,24 +24,14 @@ import com.tetr11s.game.battle.GarbageLine;
 public sealed interface Message extends Serializable {
 
     /** 메시지나 BoardSnapshot의 구성을 바꾸면 1 올리고, 서로 다르면 접속을 끊는다 */
-    int PROTOCOL_VERSION = 2;
+    int PROTOCOL_VERSION = 3;
 
     /** 연결 직후 양쪽이 서로 보낸다 */
     record Hello(int protocolVersion) implements Message {
     }
 
-    /** 연결을 끊기 직전에 이유를 알린다 */
-    record Bye(Reason reason) implements Message {
-        public enum Reason {
-            /** 플레이어가 나감 */
-            LEFT,
-            /** 프로그램 버전이 서로 다름 */
-            VERSION_MISMATCH
-        }
-
-        public Bye {
-            Objects.requireNonNull(reason, "reason");
-        }
+    /** 연결을 끊기 직전에 이유를 알린다: 상대가 나감 (버전이 다른 상대는 연결 직후 Hello에서 이미 걸러진다) */
+    record Bye() implements Message {
     }
 
     /** 서버 -> 클라이언트: 지금 대기 상태 */
