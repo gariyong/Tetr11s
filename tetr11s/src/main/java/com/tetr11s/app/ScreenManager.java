@@ -1,6 +1,7 @@
 package com.tetr11s.app;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -23,9 +24,14 @@ import com.tetr11s.game.controller.BattleKeyBindings;
 import com.tetr11s.game.controller.GameController;
 import com.tetr11s.game.view.BattleView;
 import com.tetr11s.game.view.GameView;
+import com.tetr11s.net.Message;
+import com.tetr11s.net.connect.LocalAddresses;
+import com.tetr11s.net.connect.RecentHosts;
 import com.tetr11s.net.flow.HostWaitView;
 import com.tetr11s.net.flow.JoinView;
 import com.tetr11s.net.flow.LobbyView;
+import com.tetr11s.net.flow.P2PFlow;
+import com.tetr11s.net.session.Session;
 import com.tetr11s.score.ScoreBoard;
 import com.tetr11s.score.ScoreEntry;
 import com.tetr11s.score.ScoreStore;
@@ -61,6 +67,7 @@ public class ScreenManager {
     private final ScoreStore scoreStore = new ScoreStore(false);
     private final ScoreStore itemScoreStore = new ScoreStore(true);
     private ActiveScreen currentScreen;
+    private P2PFlow p2p;   // P2P 대전 흐름 (처음 쓸 때 만든다)
     private ChangeListener<Boolean> focusListener; 
 
     // 현재 화면의 루트와 전달받는 게임뷰로 group과 stackpane를 만들어, 화면 크기 조절 시 scale 변환을 적용할 수 있게 할거임
@@ -316,9 +323,9 @@ public class ScreenManager {
         MenuScreenController controller = loader.getController();
         controller.show("P2P", "서버 또는 클라이언트를 고르세요", List.of(
                 new MenuScreenController.Item("서버 열기", "내 IP를 알려 주고 상대가 접속하기를 기다립니다.",
-                        () -> P2PScreenPreview.host(this)),
+                        () -> p2p().openHost()),
                 new MenuScreenController.Item("서버에 접속", "상대가 연 서버의 IP를 입력해 접속합니다.",
-                        () -> P2PScreenPreview.join(this)),
+                        () -> p2p().openJoin()),
                 new MenuScreenController.Item("돌아가기", "대전 방식 선택으로 돌아갑니다.",
                         this::showMultimode)),
                 this::showMultimode);
@@ -586,6 +593,69 @@ public class ScreenManager {
     // 설정 화면에서 해상도를 바꿨을 때 창을 리프레시(재마운트)하는 메서드
     public void refreshSettings() {
         showSettings();
+    }
+
+    // ----- P2P 대전 -----
+
+    /** P2P 흐름 담당 (처음 쓸 때 만든다) */
+    private P2PFlow p2p() {
+        if (p2p == null) {
+            p2p = new P2PFlow(new P2PScreens(), Platform::runLater, P2PFlow.Config.DEFAULT,
+                    new RecentHosts(), LocalAddresses::find, SettingsStore::loadDifficulty);
+        }
+        return p2p;
+    }
+
+    /** 프로그램이 끝날 때 (TetrisApp.stop): P2P 연결이 있으면 상대에게 나간다고 알리고 닫는다 */
+    public void shutdown() {
+        if (p2p != null) {
+            p2p.shutdown();
+        }
+    }
+
+    /** P2P 흐름이 화면을 바꿀 때 쓰는 것. FXML을 못 읽는 건 프로그램 오류라 예외로 알린다 */
+    private final class P2PScreens implements P2PFlow.Screens {
+
+        @Override
+        public void showMenu(String message) {
+            open(() -> {
+                showP2PMenu(message);
+                return null;
+            });
+        }
+
+        @Override
+        public HostWaitView showHostWait() {
+            return open(ScreenManager.this::showP2PHostScreen);
+        }
+
+        @Override
+        public JoinView showJoin() {
+            return open(ScreenManager.this::showP2PJoinScreen);
+        }
+
+        @Override
+        public LobbyView showLobby() {
+            return open(ScreenManager.this::showP2PLobbyScreen);
+        }
+
+        @Override
+        public boolean showBattle(Session session, Message.Start start) {
+            return false;   // 대전 화면은 7단계에서 붙인다
+        }
+    }
+
+    @FunctionalInterface
+    private interface ScreenOpener<T> {
+        T open() throws IOException;
+    }
+
+    private static <T> T open(ScreenOpener<T> opener) {
+        try {
+            return opener.open();
+        } catch (IOException e) {
+            throw new UncheckedIOException("화면을 열 수 없습니다.", e);
+        }
     }
     
 }
