@@ -130,4 +130,102 @@ class PlayerRunnerTest {
         assertFalse(runner.step(10_016L, 16L));
         assertEquals(initialRow, game.getCurrent().row());
     }
+
+    @Test
+    void lineClearFlashesThenFinishesAfter400ms() {
+        Board board = new Board();
+        GameManager game = new GameManager(board, () -> Tetromino.O, Difficulty.NORMAL);
+        game.start();
+        for (int row = board.height() - 2; row < board.height(); row++) {
+            for (int col = 0; col < board.width(); col++) {
+                if (col != 4 && col != 5) {
+                    board.fillCell(row, col, Tetromino.T, null);
+                }
+            }
+        }
+        PlayerRunner runner = new PlayerRunner(game, () -> 0L);
+        runner.reset(0L);
+
+        assertTrue(runner.onPress(GameAction.HARD_DROP, 0L));
+        assertTrue(game.isClearing());
+        assertTrue(runner.isFlashOn());                 // 0~79ms: 켜짐
+
+        assertTrue(runner.step(80L, 80L));
+        assertFalse(runner.isFlashOn());                // 80~159ms: 꺼짐
+        assertTrue(game.isClearing());
+
+        // 연출 중에는 시간이 많이 흘러도 자동 낙하가 일어나지 않고, 400ms가 차면 삭제를 끝낸다
+        assertTrue(runner.step(400L, 320L));
+        assertFalse(game.isClearing());
+        assertFalse(runner.isFlashOn());
+        for (int col = 0; col < board.width(); col++) {
+            assertEquals(null, board.get(board.height() - 1, col));
+        }
+    }
+
+    @Test
+    void autoDropMovesOneRowPerIntervalAndClampsLongGaps() {
+        GameManager game = new GameManager(new Board(), () -> Tetromino.O, Difficulty.NORMAL);
+        game.start();
+        PlayerRunner runner = new PlayerRunner(game);
+        runner.reset(0L);
+        int startRow = game.getCurrent().row();
+
+        assertFalse(runner.step(999L, 999L));
+        assertTrue(runner.step(1000L, 1L));
+        assertEquals(startRow + 1, game.getCurrent().row());
+
+        // 창이 멈춰 10초가 튀어도 한 프레임에 한 칸만 떨어진다
+        assertTrue(runner.step(11_000L, 10_000L));
+        assertEquals(startRow + 2, game.getCurrent().row());
+    }
+
+    @Test
+    void holdRestartsDropClockAndReleaseStopsRepeat() {
+        int[] calls = {0};
+        Tetromino[] order = {Tetromino.O, Tetromino.I, Tetromino.T, Tetromino.S};
+        GameManager game = new GameManager(new Board(), () -> order[calls[0]++ % order.length], Difficulty.NORMAL);
+        game.start();
+        PlayerRunner runner = new PlayerRunner(game, () -> 0L);
+        runner.reset(0L);
+
+        assertTrue(runner.onPress(GameAction.HOLD, 900L));
+        int rowAfterHold = game.getCurrent().row();
+        // 홀드 시각(900ms)부터 다시 세므로 1000ms에는 떨어지지 않는다
+        assertFalse(runner.step(1000L, 100L));
+        assertEquals(rowAfterHold, game.getCurrent().row());
+
+        int col = game.getCurrent().col();
+        assertTrue(runner.onPress(GameAction.MOVE_LEFT, 1000L));
+        runner.onRelease(GameAction.MOVE_LEFT, 1050L);
+        runner.onRelease(null, 1050L);
+        runner.onRelease(GameAction.PAUSE, 1050L);
+        runner.step(1500L, 450L);                       // 뗀 뒤에는 반복 이동이 없다
+        assertEquals(col - 1, game.getCurrent().col());
+
+        runner.cancelRepeats();
+        runner.clearKeys();
+        assertFalse(runner.onPress(null, 1600L));
+        assertTrue(runner.game() == game);
+    }
+
+    @Test
+    void nothingHappensAfterGameOver() {
+        Board board = new Board();
+        GameManager game = new GameManager(board, () -> Tetromino.O, Difficulty.NORMAL);
+        game.start();
+        // O 블럭이 나오는 4~5열을 보이는 첫 줄(버퍼 바로 아래)부터 바닥까지 막는다
+        // → 하드드롭한 블럭이 버퍼 줄에만 고정되어 게임오버 (락 아웃)
+        for (int row = Board.BUFFER_ROWS; row < board.height(); row++) {
+            board.fillCell(row, 4, Tetromino.I, null);
+            board.fillCell(row, 5, Tetromino.I, null);
+        }
+        PlayerRunner runner = new PlayerRunner(game, () -> 0L);
+        runner.reset(0L);
+        runner.onPress(GameAction.HARD_DROP, 0L);
+        assertTrue(game.isGameOver());
+
+        assertFalse(runner.onPress(GameAction.MOVE_LEFT, 6000L));
+        assertFalse(runner.step(7000L, 1000L));
+    }
 }
