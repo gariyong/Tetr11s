@@ -114,10 +114,12 @@ public class BattleManager {
 
     // 지금 상태로 결과를 판정한다. 아직 안 끝났으면 null
     private BattleResult judge() {
-        boolean over1 = player1.isGameOver();
-        boolean over2 = player2.isGameOver();
-        if(mode != BattleMode.TIME_LIMIT) return byGameOver(over1, over2);
-        else if (elapsedMs >= timeLimitMs) {
+        BattleResult byOver = byGameOver(player1.isGameOver(), player2.isGameOver());
+        
+        if (byOver != null) {
+            return byOver;   // 게임오버가 먼저 (시간제한 모드에서도)
+        }
+        if (mode == BattleMode.TIME_LIMIT && elapsedMs >= timeLimitMs) {
             return byScore(player1.getScore(), player2.getScore());
         }
         return null;

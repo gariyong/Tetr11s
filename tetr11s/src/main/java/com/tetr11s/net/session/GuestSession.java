@@ -25,11 +25,6 @@ public final class GuestSession extends Session {
         super(connection, settings, listener, executor);
     }
 
-    /** 서버가 마지막으로 알려 준 로비 상태 (아직 못 받았으면 null) */
-    public Message.LobbyState lobby() {
-        return lobby;
-    }
-
     @Override
     public void setReady(boolean ready) {
         if (state == State.LOBBY && lobby != null) {
@@ -39,11 +34,9 @@ public final class GuestSession extends Session {
 
     @Override
     public void gameOver(int score) {
-        if (state == State.COUNTDOWN || state == State.PLAYING) {
+        if (state == State.PLAYING) {
             state = State.FINISHED;
             connection.send(new Message.GameOver(score));
-        } else if (state == State.TIME_UP) {
-            submitFinalScore(score);
         }
     }
 

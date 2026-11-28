@@ -15,21 +15,39 @@ public interface SessionListener {
 
     /** 나 기준 승패 */
     enum Outcome {
-        WIN,
-        LOSE,
-        DRAW
+        WIN("승리!"),
+        LOSE("패배"),
+        DRAW("무승부");
+
+        private final String message;
+
+        Outcome(String message) {
+            this.message = message;
+        }
+
+        /** 화면에 보여 줄 문구 (무엇이 문제인지와 어떻게 하면 되는지) */
+        public String message() {
+            return message;
+        }
     }
 
     /** 세션이 끝난 이유 (화면은 에러를 띄우고 P2P 처음 화면으로 돌아간다) */
     enum End {
-        /** 상대가 나감 (Bye를 받음) */
-        PEER_LEFT,
-        /** 연결이 끊김 (상대 프로그램이 꺼짐, 네트워크 오류) */
-        CONNECTION_LOST,
-        /** 정해진 시간 동안 아무것도 받지 못함 */
-        TIMEOUT,
-        /** 상대가 잘못된 데이터를 보냄 */
-        PROTOCOL_ERROR
+        PEER_LEFT("상대가 대전을 나갔습니다."),
+        CONNECTION_LOST("상대와 연결이 끊겼습니다."),
+        TIMEOUT("상대의 응답이 너무 오래 없어서 연결을 끊었습니다."),
+        PROTOCOL_ERROR("상대가 잘못된 데이터를 보내서 연결을 끊었습니다.");
+
+        private final String message;
+
+        End(String message) {
+            this.message = message;
+        }
+
+        /** 화면에 보여 줄 문구 (무엇이 문제인지와 어떻게 하면 되는지) */
+        public String message() {
+            return message;
+        }
     }
 
     /** 로비 상태가 바뀜: 모드, 양쪽 준비 여부 (서버도 자기가 바꾼 것을 이걸로 받는다) */
@@ -44,7 +62,7 @@ public interface SessionListener {
     /** 상대가 보낸 공격 줄 (내 게임의 receiveGarbage에 넣는다) */
     void onAttack(List<GarbageLine> lines);
 
-    /** 시간제한 모드에서 시간이 끝남: 내 게임을 멈추고 submitFinalScore(점수)를 부른다 */
+    /** 시간제한 모드에서 시간이 끝남: 내 게임을 멈추고 submitFinalScore(점수)를 부른다. 내 게임이 끝났어도 부른다 */
     void onTimeUp();
 
     /** 승패가 정해짐. 이 뒤로 세션은 로비 상태다 (준비는 풀리고 모드는 그대로) */

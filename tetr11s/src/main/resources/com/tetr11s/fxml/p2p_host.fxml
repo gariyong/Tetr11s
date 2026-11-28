@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+
+<!--
+P2P 서버 대기 화면: 내 IP를 보여 주고 클라이언트의 접속을 기다린다
+내용은 P2PHostController가 채운다
+-->
+<BorderPane fx:id="root" fx:controller="com.tetr11s.app.controller.P2PHostController"
+        xmlns="http://javafx.com/javafx/21"
+        xmlns:fx="http://javafx.com/fxml/1"
+        prefWidth="480" prefHeight="640"
+        stylesheets="@../css/start_menu.css,@../css/p2p.css" styleClass="start-menu"
+        focusTraversable="true"
+        onKeyPressed="#onKeyPressed"
+        onKeyReleased="#onKeyReleased">
+        <top>
+                <VBox alignment="CENTER" spacing="8">
+                        <Label text="SERVER" styleClass="title"/>
+                        <Label text="상대가 아래 주소로 접속하면 대전이 연결됩니다" styleClass="key-hint"/>
+                </VBox>
+        </top>
+        <center>
+                <VBox alignment="CENTER" spacing="14">
+                        <Label text="내 IP 주소" styleClass="p2p-caption"/>
+                        <Label fx:id="mainAddressLabel" styleClass="p2p-address"/>
+                        <Label fx:id="otherAddressesLabel" styleClass="p2p-sub" wrapText="true"/>
+                        <Label fx:id="statusLabel" styleClass="p2p-status" wrapText="true"/>
+                </VBox>
+        </center>
+        <bottom>
+                <VBox alignment="CENTER" spacing="8">
+                        <Label text="처음 서버를 열 때 방화벽 허용 창이 뜨면 '허용'을 눌러 주세요." styleClass="p2p-hint" wrapText="true"/>
+                        <Label text="같은 PC에서 시험할 때는 127.0.0.1로 접속하면 됩니다." styleClass="p2p-hint" wrapText="true"/>
+                        <Label text="Esc 취소" styleClass="key-hint"/>
+                </VBox>
+        </bottom>
+</BorderPane>

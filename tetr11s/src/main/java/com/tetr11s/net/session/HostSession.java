@@ -65,10 +65,6 @@ public final class HostSession extends Session {
         broadcastLobby();
     }
 
-    public BattleMode mode() {
-        return mode;
-    }
-
     @Override
     public void setReady(boolean ready) {
         if (state != State.LOBBY) {
@@ -81,11 +77,9 @@ public final class HostSession extends Session {
 
     @Override
     public void gameOver(int score) {
-        if (state == State.COUNTDOWN || state == State.PLAYING) {
+        if (state == State.PLAYING) {
             state = State.FINISHED;
             gameOverOf(true);
-        } else if (state == State.TIME_UP) {
-            submitFinalScore(score);
         }
     }
 
@@ -113,10 +107,9 @@ public final class HostSession extends Session {
                 }
             }
             case Message.GameOver over -> {
-                if (state == State.COUNTDOWN || state == State.PLAYING || state == State.FINISHED) {
+                // 시간이 끝난 뒤에 도착한 게임오버는 무시한다 (클라이언트가 TimeUp을 받고 FinalScore를 따로 보낸다)
+                if (state == State.PLAYING || state == State.FINISHED) {
                     gameOverOf(false);
-                } else if (state == State.TIME_UP) {
-                    guestScore(over.score());   // 시간 종료와 거의 동시에 끝남: 그때 점수로 친다
                 }
             }
             case Message.FinalScore finalScore -> {
