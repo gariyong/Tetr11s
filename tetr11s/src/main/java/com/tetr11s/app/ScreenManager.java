@@ -192,7 +192,7 @@ public class ScreenManager {
             } catch (IOException e) {
                 throw new RuntimeException("스코어보드 화면을 열 수 없습니다.", e);
             }
-        });
+        }, () -> showGame(isItemMode));   // 게임오버 뒤 Enter: 같은 모드로 새 게임
 
         focusListener = (obs, wasFocused, isFocused) -> {
             if (!isFocused) {

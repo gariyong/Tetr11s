@@ -7,6 +7,7 @@ import com.tetr11s.game.view.GameView;
 import com.tetr11s.settings.KeyBindings;
 
 import javafx.animation.AnimationTimer;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 
 /**
@@ -22,6 +23,7 @@ public class GameController {
     private final GameView view;
     private final KeyBindings bindings;
     private final IntConsumer onQuit;
+    private final Runnable onRestart;   // 게임오버 뒤 Enter를 누르면 실행 (없으면 null)
 
     private final KeyRepeater repeater = new KeyRepeater();
     private final AnimationTimer gameLoop;
@@ -34,10 +36,21 @@ public class GameController {
      * @param onQuit 게임을 종료할 때 실행할 일 (지금은 프로그램 종료, 나중에 시작 메뉴로 이동)
      */
     public GameController(GameManager game, GameView view, KeyBindings bindings, IntConsumer onQuit) {
+        this(game, view, bindings, onQuit, null);
+    }
+
+    /**
+     * @param onQuit    게임을 종료할 때 실행할 일. 끝난 시점의 점수를 받는다
+     * @param onRestart 게임오버 뒤 Enter를 눌렀을 때 실행할 일 (같은 모드로 새 게임). null이면 다시 하기가 없다
+     */
+    public GameController(GameManager game, GameView view, KeyBindings bindings,
+                          IntConsumer onQuit, Runnable onRestart) {
         this.game = game;
         this.view = view;
         this.bindings = bindings;
         this.onQuit = onQuit;
+        this.onRestart = onRestart;
+        view.setRestartAvailable(onRestart != null);
 
         this.gameLoop = new AnimationTimer() {
             @Override 
@@ -62,6 +75,14 @@ public class GameController {
     }
 
     public void onKeyPressed(KeyEvent event) {
+        // 게임오버 팝업에서 Enter: 같은 모드로 다시 시작 (Enter가 다른 동작에 묶여 있어도 게임오버 뒤엔 다시 하기가 우선)
+        if (game.isGameOver() && onRestart != null && event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            gameLoop.stop();
+            repeater.clear();
+            onRestart.run();
+            return;
+        }
         GameAction action = bindings.actionFor(event.getCode());
         if (action == null) {
             return;

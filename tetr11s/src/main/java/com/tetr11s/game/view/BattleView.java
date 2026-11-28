@@ -30,7 +30,7 @@ public class BattleView extends StackPane {
 
     // 플레이어마다 홀드 칸(126) + 간격(14)이 들어가서 1040에서 280 늘었다
     public static final double BASE_WIDTH = 1320;
-    public static final double BASE_HEIGHT = 690;
+    public static final double BASE_HEIGHT = 690 + BoardView.BUFFER_HEIGHT;
 
     private static final long TIMER_URGENT_MS = 10_000L;
 

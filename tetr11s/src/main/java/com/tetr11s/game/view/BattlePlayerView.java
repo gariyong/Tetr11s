@@ -9,6 +9,7 @@ import com.tetr11s.settings.DefaultPalette;
 
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
+import javafx.geometry.Insets;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -81,6 +82,9 @@ public class BattlePlayerView extends HBox {
 
         setSpacing(14);
         setAlignment(Pos.TOP_CENTER);
+        // 보드 캔버스 위쪽은 버퍼 줄 자리라서, 홀드·옆 정보는 그만큼 내려 보드 테두리와 맞춘다
+        HBox.setMargin(holdView, new Insets(BoardView.BUFFER_HEIGHT, 0, 0, 0));
+        HBox.setMargin(side, new Insets(BoardView.BUFFER_HEIGHT, 0, 0, 0));
         // 홀드 칸은 두 플레이어 모두 보드 왼쪽 위에 둔다
         if (boardOnLeft) {
             getChildren().addAll(holdView, boardView, side);

@@ -16,12 +16,15 @@ import javafx.scene.paint.Color;
 /**
  * 보드를 캔버스에 그리는 화면.
  *
- * 보이는 20줄만 그리고, 위쪽 버퍼 줄은 그리지 않는다.
+ * 보이는 20줄은 테두리 안에 그리고, 위쪽 버퍼 2줄은 테두리 밖(위)에 블럭이 있을 때만 그린다.
+ * 그래서 막 생성된 블럭이 보드 위로 살짝 튀어나와 보인다.
  * 그리는 순서: 쌓인 블럭 → 고스트 → 현재 블럭 (나중에 그린 것이 위에 보인다)
  */
 public class BoardView extends Canvas {
 
     static final double CELL_SIZE = 30;
+    /** 보드 테두리 위에 버퍼 줄을 그릴 빈 공간의 높이 */
+    public static final double BUFFER_HEIGHT = Board.BUFFER_ROWS * CELL_SIZE;
 
     private static final String EMPTY = "·";
     private static final String GHOST = "□";
@@ -33,6 +36,8 @@ public class BoardView extends Canvas {
     private static final Color GARBAGE_COLOR = Color.rgb(120, 120, 120);;
     private static final double CELL_GAP = 1;
     private static final double PADDING = 2;
+    /** 보이는 첫 줄(r = 0)의 y 좌표. 버퍼 줄은 r이 음수라 이보다 위에 그려진다. */
+    private static final double ORIGIN_Y = BUFFER_HEIGHT + PADDING;
 
     private final DefaultPalette palette;
     private final int rows;
@@ -46,7 +51,7 @@ public class BoardView extends Canvas {
         this.graphics = getGraphicsContext2D();
 
         setWidth(cols * CELL_SIZE + PADDING * 2);
-        setHeight(rows * CELL_SIZE + PADDING * 2);
+        setHeight(BUFFER_HEIGHT + rows * CELL_SIZE + PADDING * 2);
         setFocusTraversable(true);
         setOnMousePressed(event -> requestFocus());
     }
@@ -68,10 +73,13 @@ public class BoardView extends Canvas {
             hiddenTargets.add(f.to());
         }
 
-        // 1. 쌓인 블럭 (버퍼 줄은 건너뜀)
-        for (int r = 0; r < rows; r++) {
+        // 1. 쌓인 블럭 (버퍼 줄은 r이 음수이고, 블럭이 있는 칸만 그린다)
+        for (int r = -Board.BUFFER_ROWS; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
                 int boardRow = r + Board.BUFFER_ROWS;
+                if (r < 0 && board.get(boardRow, c) == null) {
+                    continue;   // 버퍼의 빈칸은 배경 없이 비워 둔다
+                }
 
                 // 빈칸처리, 물블럭 처리, 가비지 블럭 처리, 일반블럭 처리 분기
                 Tetromino type = board.get(boardRow, c);
@@ -137,10 +145,10 @@ public class BoardView extends Canvas {
         }
     }
 
-    /** 보드 좌표의 칸을 화면에 그린다. 버퍼 줄이면 그리지 않는다. */
+    /** 보드 좌표의 칸을 화면에 그린다. 버퍼 줄은 테두리 위쪽에 그린다. */
     private void draw(Cell cell, String text, Color color, Tetromino type) {
         int r = cell.row() - Board.BUFFER_ROWS;
-        if (r < 0 || r >= rows || cell.col() < 0 || cell.col() >= cols) {
+        if (r < -Board.BUFFER_ROWS || r >= rows || cell.col() < 0 || cell.col() >= cols) {
             return;
         }
         set(r, cell.col(), text, color, type);
@@ -148,12 +156,15 @@ public class BoardView extends Canvas {
 
     // 캔버스 새로 그리기
     private void clear() {
+        // 버퍼 영역은 투명하게 비우고, 보이는 20줄에만 배경과 테두리를 그린다
+        graphics.clearRect(0, 0, getWidth(), getHeight());
+        double boardHeight = getHeight() - BUFFER_HEIGHT;
         graphics.setFill(BACKGROUND_COLOR);
-        graphics.fillRect(0, 0, getWidth(), getHeight());
+        graphics.fillRect(0, BUFFER_HEIGHT, getWidth(), boardHeight);
 
         graphics.setStroke(BORDER_COLOR);
         graphics.setLineWidth(2);
-        graphics.strokeRect(1, 1, getWidth() - 2, getHeight() - 2);
+        graphics.strokeRect(1, BUFFER_HEIGHT + 1, getWidth() - 2, boardHeight - 2);
     }
 
     private void set(int r, int c, String text, Color color, Tetromino type) {
@@ -163,7 +174,7 @@ public class BoardView extends Canvas {
     // 캔버스에 그릴때 CELL_SIZE 곱해서 잘 그립니다
     private void drawCell(int r, int c, String text, Color color, Tetromino type) {
         double x = PADDING + c * CELL_SIZE;
-        double y = PADDING + r * CELL_SIZE;
+        double y = ORIGIN_Y + r * CELL_SIZE;
         double size = CELL_SIZE - CELL_GAP;
 
         if (EMPTY.equals(text)) {
@@ -209,7 +220,7 @@ public class BoardView extends Canvas {
 
         double progress = Math.min(1.0, elapsed / 260.0);
         double x = PADDING + c * CELL_SIZE;
-        double y = PADDING + r * CELL_SIZE;
+        double y = ORIGIN_Y + r * CELL_SIZE;
         double size = CELL_SIZE - CELL_GAP;
 
         double waterHeight = size * progress;
@@ -270,11 +281,11 @@ public class BoardView extends Canvas {
         }
 
         double visRow = curRow - Board.BUFFER_ROWS;
-        if (visRow < -1 || visRow >= rows || curCol < 0 || curCol >= cols) {
+        if (visRow < -Board.BUFFER_ROWS || visRow >= rows || curCol < 0 || curCol >= cols) {
             return;
         }
         double x = PADDING + curCol * CELL_SIZE;
-        double y = PADDING + visRow * CELL_SIZE;
+        double y = ORIGIN_Y + visRow * CELL_SIZE;
         double size = CELL_SIZE - CELL_GAP;
         Color color = palette.getColor(f.type());
 
@@ -305,7 +316,7 @@ public class BoardView extends Canvas {
                 (double) (nowMs - e.startMs()) / ItemGameManager.EXPLOSION_DURATION_MS));
         double visRow = e.row() - Board.BUFFER_ROWS;
         double cx = PADDING + (e.col() + 0.5) * CELL_SIZE;
-        double cy = PADDING + (visRow + 0.5) * CELL_SIZE;
+        double cy = ORIGIN_Y + (visRow + 0.5) * CELL_SIZE;
         double radius = CELL_SIZE * (0.6 + progress * 1.4);
         double alpha = 1.0 - progress;
 
@@ -318,11 +329,11 @@ public class BoardView extends Canvas {
     }
 
     private void drawItem(int r, int c, Item item) {
-        if (r < 0 || r >= rows || c < 0 || c >= cols) {
+        if (r < -Board.BUFFER_ROWS || r >= rows || c < 0 || c >= cols) {
             return;
-        } // 버퍼 행 범위 가드
+        } // 보드 범위 가드 (버퍼 줄 포함)
         double x = PADDING + c * CELL_SIZE;
-        double y = PADDING + r * CELL_SIZE;
+        double y = ORIGIN_Y + r * CELL_SIZE;
         double size = CELL_SIZE - CELL_GAP;
         Color color = switch (item) {
             case L -> Color.DODGERBLUE;
